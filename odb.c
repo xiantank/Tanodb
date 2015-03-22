@@ -90,6 +90,8 @@ int init(){//TODO read from file;
 		DB.OBJSIZE = 10000;
 		DB.curFid = 0;
 		DB.offset = 0;
+
+		return 1;
 }
 size_t receiveObj(int fd,char * obj){
 		size_t bytes;
@@ -108,7 +110,6 @@ size_t receiveObj(int fd,char * obj){
 
 }
 unsigned char *md5(char *in,unsigned char * out){
-		int n;
         MD5_CTX c;
         char buf[512];
         ssize_t bytes;
@@ -210,7 +211,7 @@ int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , 
 		lseek(fd,offset,SEEK_SET);
 		verify = read(fd , start,size );
 		if(verify != ( size )){
-				fprintf(stderr , "getObj error[%d](%s)!\nread: %d\n{%s}\n", errno , filename ,verify,start);
+				fprintf(stderr , "getObj error[%d](%s)!\nread: %zd\n{%s}\n", errno , filename ,verify, (char*)start);
 				return -1;
 				//TODO some error handle
 		}
