@@ -1,12 +1,14 @@
 #include <openssl/md5.h>
 #include <unistd.h>
 #include<stdio.h>
+#include<stdlib.h>
 #include<string.h>
 #include<fcntl.h>
 #include<sys/stat.h>
 #include <inttypes.h>
 #include<sys/types.h>
 #include<errno.h>
+#include<getopt.h>
 /* 
  * structure declare
  */
@@ -18,7 +20,7 @@ struct Index{//use 30 bytes per index
 		int collision;
 };
 struct Config{
-		char PATH[50];
+		char PATH[100];
 		int FILENUM;
 		off_t MAXFILESIZE;
 		int BUCKETSIZE;
@@ -33,8 +35,6 @@ typedef struct Config Config;
  * global config varible declare
  */
 Config DB;
-
-
 /*
  * function declare
  */
@@ -50,9 +50,91 @@ size_t receiveObj(int fd,char * obj);
 /*
  *main function
 */
-int main()
+int main(int argc , char *argv[])
 {
-		init();	//get DB setting 
+		int c=0;
+		char* const short_options = "idf:s:n:b:o:p:";
+		struct option long_options[] = {
+				{ "init" , 0 , NULL , 'i' },
+				{ "default" , 0 , NULL , 'd' },
+				{ "fnum" , 1 , NULL , 'f' },
+				{ "fsize" , 1 , NULL , 's' },
+				{ "bnum" , 1 , NULL , 'n' },
+				{ "bsize" , 1 , NULL , 'b' },
+				{ "maxobjsize" , 1 , NULL , 'o' },
+				{ "path" , 1 , NULL , 'p' },
+				{ 0 , 0 , 0 , 0}
+		};
+		int argFlag=0;//fsnbopid ;  8bits!;  76543210 ;128  64  32  16  8  4  2  1
+		while((c = getopt_long (argc, argv, short_options, long_options, NULL)) != -1){
+				switch(c){
+						case 'f' : 
+							DB.FILENUM = atoi(optarg);
+							argFlag = argFlag | 1<<7;
+							break;
+						case 's' : 
+							DB.MAXFILESIZE = (off_t)atol(optarg);
+							argFlag = argFlag | 1<<6;
+							break;
+						case 'n' : 
+							DB.BUCKETNUM = (size_t)atol(optarg);
+							argFlag = argFlag | 1<<5;
+							break;
+						case 'b' : 
+							DB.BUCKETSIZE = atoi(optarg);
+							argFlag = argFlag | 1<<4;
+							break;
+						case 'o' : 
+							DB.OBJSIZE = (unsigned int)atoi(optarg);
+							argFlag = argFlag | 1<<3;
+							break;
+						case 'p' : 
+							strcpy(DB.PATH,optarg);
+							argFlag = argFlag | 1<<2;
+							break;
+						case 'i' : 
+							if(argFlag!=0){
+									fprintf(stderr,
+										"argument init must placed at the top\n%s --init [options]\n",argv[0]);
+									exit(1);
+							}
+							init();	//init DB setting 
+							argFlag = argFlag | 1<<1;
+							break;
+						case 'd' : 
+							if(argFlag != 2){//NOT REALLY USE!!!
+									fprintf(stderr,
+									"argument init must placed at the top\n%s --init --default [options]\n",argv[0]);
+									exit(1);
+							}
+							init();	//init DB setting 
+							argFlag = argFlag | 1;
+							break;
+				}
+		}
+		if(argFlag & 2){//that is must init
+				if(! (argFlag & 2)){//no init argument
+						fprintf(stderr,"argument init must placed at the top\n%s --init [options]\n",argv[0]);
+						exit(1);
+				}
+				char dbini[100];
+				int tmp=-2;
+				sprintf(dbini,"%sdb.ini",DB.PATH);
+				tmp = saveVariable( (void *) &DB, sizeof(DB) , 1 , dbini);
+				printf("%d\n",tmp);
+
+		}else if(argFlag == (1<<2)){//only arg:path
+				char dbini[100];
+				int tmp=-2;
+				sprintf(dbini,"%sdb.ini",DB.PATH);
+				getVariable( (void *)&DB, sizeof(DB) , 1 , dbini);
+		}else {
+				fprintf(stderr,"arg error!%x",argFlag);
+				exit(1);
+				//TODO usage();
+		}
+
+		/* test */
 
 		unsigned char out[MD5_DIGEST_LENGTH];
 		Index indexTable[DB.BUCKETNUM];//TODO use malloc and check
@@ -82,7 +164,7 @@ int main()
 }
 /* function implement*/
 int init(){//TODO read from file;
-		strcpy (DB.PATH ,"db");
+		strcpy (DB.PATH ,"/.amd_mnt/cs1/host/csdata/home/under/u99/cht99u/de/db");
 		DB.FILENUM = 5;
 		DB.MAXFILESIZE = 274877906944;
 		DB.BUCKETSIZE = 0;
@@ -163,7 +245,6 @@ int saveVariable(void *start, int size , int nnum , char *filename){
 		verify = write(fd , start,(ssize_t)size * nnum);
 		close(fd);
 		return verify;
-
 }
 int getVariable(void *start, int size , int nnum , char *filename){
 		int fd;
@@ -195,10 +276,7 @@ int putObject(void *start , off_t size , char *fileprefix , unsigned char *fid ,
 		}
 		*offset += verify;
 		return verify;
-		
-
 }
-
 int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , off_t offset ){
 		int fileId = 0;
 		char filename[50]={};
@@ -216,7 +294,5 @@ int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , 
 				//TODO some error handle
 		}
 		return 0;
-		
-
 }
 
