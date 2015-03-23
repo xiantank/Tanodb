@@ -18,6 +18,7 @@ struct Index{//use 30 bytes per index
 		unsigned char offset[5];//maxfilesize is 1T; use fixxed offset;
 		unsigned int size;	//object size limit : 1G
 		int collision;
+		unsigned char indexFlag;// 1:delete 2:collision
 };
 struct Config{
 		char PATH[100];
@@ -28,6 +29,7 @@ struct Config{
 		unsigned int OBJSIZE;
 		unsigned char curFid;
 		off_t offset;
+		int ifFull; //TODO
 };
 typedef struct Index Index;
 typedef struct Config Config;
@@ -35,18 +37,29 @@ typedef struct Config Config;
  * global config varible declare
  */
 Config DB;
+char buffer[10000];
 /*
  * function declare
  */
 int init();
-unsigned char *md5(char *in , unsigned char * out);
-off_t bytesToOffset(unsigned char *bytesNum,int size);
-int readString(char **src , char * dst , int length);//src wiil move to new location
 int getVariable(void *start, int size , int nnum , char *filename);
-int saveVariable(void *start, int size , int nnum , char *filename);
 int putObject(void *start , off_t size , char *fileprefix , unsigned char *fid , off_t *offset );
 int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , off_t offset );
 size_t receiveObj(int fd,char * obj);
+off_t getIndex(unsigned char *md5 , Index * indexTable);
+void saveDB();
+//TODO saveIndex()
+/*
+ * tool function
+*/
+int saveVariable(void *start, int size , int nnum , char *filename);
+unsigned char *md5(char *in , unsigned char * out);
+int readString(char **src , char * dst , int length);//src wiil move to new location
+off_t bytesToOffset(unsigned char *bytesNum,int size);
+off_t getHV(unsigned char *md5);
+off_t findIndex(off_t hv , Index *indexTable);
+
+
 /*
  *main function
 */
@@ -117,11 +130,8 @@ int main(int argc , char *argv[])
 						fprintf(stderr,"argument init must placed at the top\n%s --init [options]\n",argv[0]);
 						exit(1);
 				}
-				char dbini[100];
-				int tmp=-2;
-				sprintf(dbini,"%sdb.ini",DB.PATH);
-				tmp = saveVariable( (void *) &DB, sizeof(DB) , 1 , dbini);
-				printf("%d\n",tmp);
+				saveDB();
+				exit(0);
 
 		}else if(argFlag == (1<<2)){//only arg:path
 				char dbini[100];
@@ -136,35 +146,45 @@ int main(int argc , char *argv[])
 
 		/* test */
 
-		unsigned char out[MD5_DIGEST_LENGTH];
-		Index indexTable[DB.BUCKETNUM];//TODO use malloc and check
+		unsigned char md5out[MD5_DIGEST_LENGTH];
+		Index indexTable[DB.BUCKETNUM];//TODO use malloc and check and memset(indexTable , 0)
+		memset(indexTable , 0 , sizeof(Index)*DB.BUCKETNUM);
 		char obj[DB.OBJSIZE];//TODO use malloc and check
 		
 		
+		off_t bytes=0,index=0;
 		char str[]="abcdefg\n";
 		char str2[1000];
 		char str3[] = "yoyoABCCC";
-		int n;
 		off_t app;
+		size_t n;
 		unsigned char off[]={5,253,222,132,221};
 		app = bytesToOffset(off,5);
-		n = receiveObj(STDIN_FILENO,str2);
-		printf("%s\n[%d]",str2,n);
+		bytes = receiveObj(STDIN_FILENO,buffer);
+		md5(buffer,md5out);
+		index = getIndex(md5out , indexTable);
+		if(index < 0 ){
+				printf("%zd\n",index);
+				putObject(buffer , bytes , DB.PATH , &DB.curFid , &DB.offset);
+		}
+		return 0;
+		//if( n >0 && (getObject(buffer , n , DB.PATH , DB)))
+		printf("%s\n[%zd]",str2,n);
 		
 		
 		putObject(str , strlen(str) , DB.PATH , &DB.curFid , &DB.offset);
 		putObject(str3 , strlen(str3) , DB.PATH , &DB.curFid , &DB.offset );
 		getObject(str2 , 17 , DB.PATH , (unsigned char) 0 , 0);
 		//char str[8];//="abcdefg\n";
-		md5(str,out);
+		md5(str,md5out);
         for(n=0; n<MD5_DIGEST_LENGTH; n++)
-                printf("%02x", out[n]);
+                printf("%02x", md5out[n]);
         printf("\n[%s]\n",str);
 		return 0;
 }
 /* function implement*/
 int init(){//TODO read from file;
-		strcpy (DB.PATH ,"/.amd_mnt/cs1/host/csdata/home/under/u99/cht99u/de/db");
+		strcpy (DB.PATH ,"./");
 		DB.FILENUM = 5;
 		DB.MAXFILESIZE = 274877906944;
 		DB.BUCKETSIZE = 0;
@@ -174,6 +194,32 @@ int init(){//TODO read from file;
 		DB.offset = 0;
 
 		return 1;
+}
+off_t getHV(unsigned char *md5){
+		off_t tmp=0;
+		tmp = bytesToOffset(&md5[0],8) ^ bytesToOffset(&md5[8],8);
+		return tmp % DB.BUCKETNUM;
+}
+off_t getIndex(unsigned char *md5 , Index * indexTable){
+		off_t locate = -1;
+		//return locate;
+		off_t hv = getHV(md5);
+
+		return findIndex(hv , indexTable);
+		
+}
+off_t findIndex(off_t hv , Index *indexTable){
+		if( indexTable[hv].indexFlag & (1<<3)){// check is INDEX_EXIST //TODO set flag
+				if(indexTable[hv].indexFlag & (1<<2)){// INDEX_DELETE){ //TODO set flag
+				}
+				else if(memcmp(indexTable[hv].MD5 , md5 , 16)){
+						return hv;
+				}
+				return findIndex(indexTable[hv].collision , indexTable);
+		}
+		else {
+				return -1;
+		}
 }
 size_t receiveObj(int fd,char * obj){
 		size_t bytes;
@@ -239,12 +285,23 @@ int saveVariable(void *start, int size , int nnum , char *filename){
 		ssize_t verify =-1;
 		fd = open(filename,O_WRONLY|O_CREAT|O_TRUNC , S_IWUSR | S_IRUSR);
 		if(fd<0){//TODO error handle
-				fprintf(stderr , "save error\n");
+				fprintf(stderr , "save error[%d]\n",fd);
 				return -1;
 		}
 		verify = write(fd , start,(ssize_t)size * nnum);
 		close(fd);
 		return verify;
+}
+void saveDB(){
+		char dbini[100];
+		int tmp=-2;
+		sprintf(dbini,"%sdb.ini",DB.PATH);
+		tmp = saveVariable( (void *) &DB, sizeof(DB) , 1 , dbini);
+		if(tmp != sizeof(Config) ){
+				fprintf(stderr , "[%d] saveDB() error\n",tmp);
+				exit(2);
+		}
+
 }
 int getVariable(void *start, int size , int nnum , char *filename){
 		int fd;
@@ -275,6 +332,10 @@ int putObject(void *start , off_t size , char *fileprefix , unsigned char *fid ,
 				//TODO some error handle
 		}
 		*offset += verify;
+		//TODO save to db.ini
+		//UpdateIndex();
+		//saveIndex();
+		saveDB();
 		return verify;
 }
 int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , off_t offset ){
@@ -293,6 +354,6 @@ int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , 
 				return -1;
 				//TODO some error handle
 		}
-		return 0;
+		return verify;
 }
 
