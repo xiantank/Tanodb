@@ -56,7 +56,7 @@ off_t getIndex(unsigned char *md5 , Index * indexTable);
 off_t getItem( Index *indexTable , unsigned char *md5out , char* buffer);
 off_t putItem(Index * indexTable , char *buffer , off_t size  );
 void saveDB();
-//TODO saveIndex()
+void saveIndex(Index *indexTable);
 /*
  * tool function
 */
@@ -76,7 +76,6 @@ off_t updateIndex(Index *indexTable , unsigned char *md5 , unsigned char fid , o
 */
 int main(int argc , char *argv[])
 {
-		unsigned char test[] = {15,226,135,44,31};//TODO test offsetTobytes
 
 		int c=0;
 		char* const short_options = "idf:s:n:b:o:p:";
@@ -161,7 +160,7 @@ int main(int argc , char *argv[])
 		unsigned char md5out[MD5_DIGEST_LENGTH];
 		Index indexTable[DB.BUCKETNUM];//TODO use malloc and check and memset(indexTable , 0)
 		memset(indexTable , 0 , sizeof(Index)*DB.BUCKETNUM);
-		char obj[DB.OBJSIZE];//TODO use malloc and check
+		//char obj[DB.OBJSIZE];//TODO use malloc and check
 		
 		
 		
@@ -172,7 +171,6 @@ int main(int argc , char *argv[])
 		char str2[1000];
 		char str3[] = "yoyoABCCC";
 		size_t n;
-		unsigned char off[]={5,253,222,132,221};
 		bytes = receiveObj(STDIN_FILENO,buffer);
 		md5(buffer,md5out);
 		index = getIndex(md5out , indexTable);
@@ -309,12 +307,22 @@ void saveDB(){
 		char dbini[100];
 		int tmp=-2;
 		sprintf(dbini,"%sdb.ini",DB.PATH);
-		tmp = saveVariable( (void *) &DB, sizeof(DB) , 1 , dbini);
+		tmp = saveVariable( (void *) &DB, sizeof(Config) , 1 , dbini);
 		if(tmp != sizeof(Config) ){
 				fprintf(stderr , "[%d] saveDB() error\n",tmp);
 				exit(2);
 		}
 
+}
+void saveIndex(Index *indexTable){
+		char indexFile[100];
+		int tmp=-2;
+		sprintf(indexFile,"%sdb.inx",DB.PATH);
+		tmp = saveVariable( (void *) &indexTable, sizeof(Index) , DB.BUCKETNUM , indexFile);
+		if(tmp != sizeof(Index) ){
+				fprintf(stderr , "[%d] saveIndex() error\n",tmp);
+				exit(2);
+		}
 }
 int getVariable(void *start, int size , int nnum , char *filename){
 		int fd;
@@ -344,9 +352,6 @@ int putObject(void *start , off_t size , char *fileprefix , unsigned char *fid ,
 				//TODO some error handle
 		}
 		*offset += verify;
-		//TODO save to db.ini
-		//UpdateIndex();
-		//saveIndex();
 		saveDB();
 		return verify;
 }
@@ -389,7 +394,7 @@ off_t putItem(Index * indexTable , char *buffer , off_t size  ){
 		}
 		startOffset = DB.offset;
 		putObject( buffer , size , DB.PATH , &DB.curFid , &DB.offset);
-		//return updateIndex();
+		return updateIndex(indexTable , md5out , DB.curFid , startOffset , size);
 
 
 }
@@ -404,14 +409,12 @@ off_t updateIndex(Index *indexTable , unsigned char *md5 , unsigned char fid , o
 		}
 		memcpy(indexTable[locate].MD5 , md5 , MD5_DIGEST_LENGTH );
 		indexTable[locate].fid = DB.curFid ;
-		offsetTobytes(indexTable[locate].offset , offset , INDEX_OFFSET_LENGTH) ;//TODO
+		offsetTobytes(indexTable[locate].offset , offset , INDEX_OFFSET_LENGTH) ;
 		indexTable[locate].size = (unsigned int )size;
 		indexTable[locate].collision = 0 ;
 		indexTable[locate].indexFlag = 0 ;
-
-
-		//TODO
-		return 0
+		saveIndex(indexTable);
+		return 0;
 
 }
 off_t findLocate(off_t hv , Index *indexTable){
