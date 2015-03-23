@@ -9,6 +9,7 @@
 #include<sys/types.h>
 #include<errno.h>
 #include<getopt.h>
+const int INDEX_OFFSET_LENGTH = 5;
 /* 
  * structure declare
  */
@@ -20,12 +21,17 @@ struct Index{//use 30 bytes per index
 		int collision;
 		unsigned char indexFlag;// 1:delete 2:collision
 };
+typedef enum{
+		INDEX_DELETE = 1,
+		INDEX_COLLISION = 2,
+		INDEX_EXIST = (1<<7)
+}indexFlag;
 struct Config{
 		char PATH[100];
 		int FILENUM;
 		off_t MAXFILESIZE;
 		int BUCKETSIZE;
-		size_t BUCKETNUM;
+		off_t BUCKETNUM;
 		unsigned int OBJSIZE;
 		unsigned char curFid;
 		off_t offset;
@@ -48,7 +54,7 @@ int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , 
 size_t receiveObj(int fd,unsigned char * obj);
 off_t getIndex(unsigned char *md5 , Index * indexTable);
 off_t getItem( Index *indexTable , unsigned char *md5out , char* buffer);
-int putItem(Index * indexTable , char *buffer , off_t size  );
+off_t putItem(Index * indexTable , char *buffer , off_t size  );
 void saveDB();
 //TODO saveIndex()
 /*
@@ -58,8 +64,11 @@ int saveVariable(void *start, int size , int nnum , char *filename);
 unsigned char *md5(char *in , unsigned char * out);
 int readString(char **src , char * dst , int length);//src wiil move to new location
 off_t bytesToOffset(unsigned char *bytesNum,int size);
+void offsetTobytes(unsigned char *c_offset , off_t offset, int length);
 off_t getHV(unsigned char *md5);
 off_t findIndex(off_t hv , Index *indexTable);
+off_t findLocate(off_t hv , Index *indexTable);
+off_t updateIndex(Index *indexTable , unsigned char *md5 , unsigned char fid , off_t offset , off_t size );
 
 
 /*
@@ -67,6 +76,8 @@ off_t findIndex(off_t hv , Index *indexTable);
 */
 int main(int argc , char *argv[])
 {
+		unsigned char test[] = {15,226,135,44,31};//TODO test offsetTobytes
+
 		int c=0;
 		char* const short_options = "idf:s:n:b:o:p:";
 		struct option long_options[] = {
@@ -137,7 +148,6 @@ int main(int argc , char *argv[])
 
 		}else if(argFlag == (1<<2)){//only arg:path
 				char dbini[100];
-				int tmp=-2;
 				sprintf(dbini,"%sdb.ini",DB.PATH);
 				getVariable( (void *)&DB, sizeof(DB) , 1 , dbini);
 		}else {
@@ -161,10 +171,8 @@ int main(int argc , char *argv[])
 		char str[]="abcdefg\n";
 		char str2[1000];
 		char str3[] = "yoyoABCCC";
-		off_t app;
 		size_t n;
 		unsigned char off[]={5,253,222,132,221};
-		app = bytesToOffset(off,5);
 		bytes = receiveObj(STDIN_FILENO,buffer);
 		md5(buffer,md5out);
 		index = getIndex(md5out , indexTable);
@@ -208,16 +216,14 @@ off_t getHV(unsigned char *md5){
 		return tmp % DB.BUCKETNUM;
 }
 off_t getIndex(unsigned char *md5 , Index * indexTable){
-		off_t locate = -1;
-		//return locate;
 		off_t hv = getHV(md5);
 
 		return findIndex(hv , indexTable);
 		
 }
 off_t findIndex(off_t hv , Index *indexTable){
-		if( indexTable[hv].indexFlag & (1<<3)){// check is INDEX_EXIST //TODO set flag
-				if(indexTable[hv].indexFlag & (1<<2)){// INDEX_DELETE){ //TODO set flag
+		if( indexTable[hv].indexFlag & INDEX_EXIST){// check is INDEX_EXIST //TODO set flag
+				if(indexTable[hv].indexFlag & INDEX_DELETE){// INDEX_DELETE){ //TODO set flag
 				}
 				else if(memcmp(indexTable[hv].MD5 , md5 , 16)){
 						return hv;
@@ -323,7 +329,6 @@ int getVariable(void *start, int size , int nnum , char *filename){
 }
 int putObject(void *start , off_t size , char *fileprefix , unsigned char *fid , off_t *offset ){
 		//TODO check file size
-		//TODO return type turn to Index, or put to Index ary out side
 		int fileId = 0;
 		char filename[50]={};
 		int fd;
@@ -368,7 +373,64 @@ off_t getItem( Index *indexTable , unsigned char *md5out , char* buffer){
 		off_t index=-1;
 		
 		index = getIndex(md5out , indexTable);
+		if(index == -1 ) return -1;
+		//TODO if( md5 != iT.md5 && iT.flag==COLLISION)
+		return getObject(buffer , indexTable[index].size , DB.PATH , indexTable[index].fid ,(off_t)indexTable[index].offset);
+
 
 }
-int putItem(Index * indexTable , char *buffer , off_t size  ){
+off_t putItem(Index * indexTable , char *buffer , off_t size  ){
+		unsigned char md5out[MD5_DIGEST_LENGTH];
+		off_t index = -1 , startOffset;
+		md5(buffer , md5out);
+		index = getIndex(md5out , indexTable);
+		if(index != -1){//it found in table
+				return index;
+		}
+		startOffset = DB.offset;
+		putObject( buffer , size , DB.PATH , &DB.curFid , &DB.offset);
+		//return updateIndex();
+
+
+}
+off_t updateIndex(Index *indexTable , unsigned char *md5 , unsigned char fid , off_t offset , off_t size ){
+
+		off_t locate =-1;
+		locate = findLocate(getHV(md5) , indexTable);
+		if(locate == -1){
+				DB.isFull = 1;
+				fprintf(stderr , "DB is full (index num full)\n");
+				exit(5);
+		}
+		memcpy(indexTable[locate].MD5 , md5 , MD5_DIGEST_LENGTH );
+		indexTable[locate].fid = DB.curFid ;
+		offsetTobytes(indexTable[locate].offset , offset , INDEX_OFFSET_LENGTH) ;//TODO
+		indexTable[locate].size = (unsigned int )size;
+		indexTable[locate].collision = 0 ;
+		indexTable[locate].indexFlag = 0 ;
+
+
+		//TODO
+		return 0
+
+}
+off_t findLocate(off_t hv , Index *indexTable){
+		off_t i;
+		for(i=0 ; i<DB.BUCKETNUM ; i++,hv++){
+				if(i == DB.BUCKETNUM) hv %= DB.BUCKETNUM;
+				if(indexTable[hv].indexFlag & INDEX_EXIST){
+						//do nothing
+				}
+				else{
+						return hv;
+				}
+		}
+		return -1;
+}
+void offsetTobytes(unsigned char *c_offset , off_t offset, int length){
+		int i=0;
+		for(i=length-1;i>=0;i--){
+				c_offset[i] = offset & 0xff;
+				offset = offset >> 8;
+		}
 }
