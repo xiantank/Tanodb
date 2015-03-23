@@ -37,7 +37,7 @@ typedef struct Config Config;
  * global config varible declare
  */
 Config DB;
-char buffer[10000];
+unsigned char buffer[100000];
 /*
  * function declare
  */
@@ -45,7 +45,7 @@ int init();
 int getVariable(void *start, int size , int nnum , char *filename);
 int putObject(void *start , off_t size , char *fileprefix , unsigned char *fid , off_t *offset );
 int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , off_t offset );
-size_t receiveObj(int fd,char * obj);
+size_t receiveObj(int fd,unsigned char * obj);
 off_t getIndex(unsigned char *md5 , Index * indexTable);
 off_t getItem( Index *indexTable , unsigned char *md5out , char* buffer);
 int putItem(Index * indexTable , char *buffer , off_t size  );
@@ -169,10 +169,9 @@ int main(int argc , char *argv[])
 		md5(buffer,md5out);
 		index = getIndex(md5out , indexTable);
 		if(index < 0 ){
-				printf("%zd\n",index);
 				//putObject(buffer , bytes , DB.PATH , &DB.curFid , &DB.offset);
-				putObject(buffer , bytes , DB.PATH ,(unsigned char ) 0 , 0);
-				getObject(buffer , bytes , DB.PATH , (unsigned char) 0 , 0);
+				putObject(buffer , bytes , DB.PATH , &DB.curFid , &DB.offset);
+				getObject(buffer , bytes , DB.PATH , DB.curFid , (off_t)0);
 				write(STDOUT_FILENO , buffer , bytes );
 		}
 		return 0;
@@ -229,15 +228,15 @@ off_t findIndex(off_t hv , Index *indexTable){
 				return -1;
 		}
 }
-size_t receiveObj(int fd,char * obj){
-		size_t bytes;
-		char *ptr = obj;
-		char buf[512];
+size_t receiveObj(int fd,unsigned char * obj){
+		off_t bytes;
+		unsigned char *ptr = obj;
+		unsigned char buf[512];
 		//bytes=read(STDIN_FILENO, buf, 512);
 		bytes=read( fd , buf, 512);
 		while(bytes > 0)
 		{
-				strncpy(ptr,buf,bytes);
+				memcpy(ptr,buf,bytes);
 				ptr+=bytes;
 				bytes=read(fd, buf, 512);
 		}
