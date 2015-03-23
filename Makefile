@@ -1,2 +1,2 @@
 all:
-	gcc -W odb.c -lcrypto  -g
+	gcc -W odb.c -lcrypto -g
