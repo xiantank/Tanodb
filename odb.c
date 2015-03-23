@@ -53,8 +53,8 @@ int putObject(void *start , off_t size , char *fileprefix , unsigned char *fid ,
 int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , off_t offset );
 size_t receiveObj(int fd,unsigned char * obj);
 off_t getIndex(unsigned char *md5 , Index * indexTable);
-off_t getItem( Index *indexTable , unsigned char *md5out , char* buffer);
-off_t putItem(Index * indexTable , char *buffer , off_t size  );
+off_t getItem( Index *indexTable , unsigned char *md5out , unsigned char* buffer);
+off_t putItem(Index * indexTable , unsigned char *buffer , off_t size  );
 void saveDB();
 void saveIndex(Index *indexTable);
 /*
@@ -161,38 +161,25 @@ int main(int argc , char *argv[])
 		Index indexTable[DB.BUCKETNUM];//TODO use malloc and check and memset(indexTable , 0)
 		memset(indexTable , 0 , sizeof(Index)*DB.BUCKETNUM);
 		//char obj[DB.OBJSIZE];//TODO use malloc and check
-		
-		
-		
-		
-		
-		off_t bytes=0,index=0;
-		char str[]="abcdefg\n";
-		char str2[1000];
-		char str3[] = "yoyoABCCC";
-		size_t n;
+
+
+		off_t bytes=0,index=0,n;
 		bytes = receiveObj(STDIN_FILENO,buffer);
+		n = putItem(indexTable , buffer , bytes);
+		fprintf(stderr , "[%zd]",n);
 		md5(buffer,md5out);
+		memset(buffer , 0 ,sizeof(buffer));
+		bytes = getItem(indexTable , md5out , buffer);
+		write(STDOUT_FILENO , buffer , bytes );
+		fprintf(stderr , "[%zd]",bytes);
+
+		return 0;
 		index = getIndex(md5out , indexTable);
 		if(index < 0 ){
-				//putObject(buffer , bytes , DB.PATH , &DB.curFid , &DB.offset);
 				putObject(buffer , bytes , DB.PATH , &DB.curFid , &DB.offset);
 				getObject(buffer , bytes , DB.PATH , DB.curFid , (off_t)0);
 				write(STDOUT_FILENO , buffer , bytes );
 		}
-		return 0;
-		//if( n >0 && (getObject(buffer , n , DB.PATH , DB)))
-		printf("%s\n[%zd]",str2,n);
-		
-		
-		putObject(str , strlen(str) , DB.PATH , &DB.curFid , &DB.offset);
-		putObject(str3 , strlen(str3) , DB.PATH , &DB.curFid , &DB.offset );
-		getObject(str2 , 17 , DB.PATH , (unsigned char) 0 , 0);
-		//char str[8];//="abcdefg\n";
-		md5(str,md5out);
-        for(n=0; n<MD5_DIGEST_LENGTH; n++)
-                printf("%02x", md5out[n]);
-        printf("\n[%s]\n",str);
 		return 0;
 }
 /* function implement*/
@@ -211,6 +198,7 @@ int init(){//TODO read from file;
 off_t getHV(unsigned char *md5){
 		off_t tmp=0;
 		tmp = bytesToOffset(&md5[0],8) ^ bytesToOffset(&md5[8],8);
+		if(tmp < 0 ) tmp = (tmp * -1);
 		return tmp % DB.BUCKETNUM;
 }
 off_t getIndex(unsigned char *md5 , Index * indexTable){
@@ -319,7 +307,7 @@ void saveIndex(Index *indexTable){
 		int tmp=-2;
 		sprintf(indexFile,"%sdb.inx",DB.PATH);
 		tmp = saveVariable( (void *) &indexTable, sizeof(Index) , DB.BUCKETNUM , indexFile);
-		if(tmp != sizeof(Index) ){
+		if(tmp != (sizeof(Index) * DB.BUCKETNUM) ){
 				fprintf(stderr , "[%d] saveIndex() error\n",tmp);
 				exit(2);
 		}
@@ -373,7 +361,7 @@ int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , 
 		}
 		return verify;
 }
-off_t getItem( Index *indexTable , unsigned char *md5out , char* buffer){
+off_t getItem( Index *indexTable , unsigned char *md5out , unsigned char* buffer){
 		//TODO maybe use filename to get md5out
 		off_t index=-1;
 		
@@ -384,7 +372,7 @@ off_t getItem( Index *indexTable , unsigned char *md5out , char* buffer){
 
 
 }
-off_t putItem(Index * indexTable , char *buffer , off_t size  ){
+off_t putItem(Index * indexTable ,unsigned char *buffer , off_t size  ){
 		unsigned char md5out[MD5_DIGEST_LENGTH];
 		off_t index = -1 , startOffset;
 		md5(buffer , md5out);
@@ -413,8 +401,9 @@ off_t updateIndex(Index *indexTable , unsigned char *md5 , unsigned char fid , o
 		indexTable[locate].size = (unsigned int )size;
 		indexTable[locate].collision = 0 ;
 		indexTable[locate].indexFlag = 0 ;
+		indexTable[locate].indexFlag |= INDEX_EXIST ;
 		saveIndex(indexTable);
-		return 0;
+		return locate;
 
 }
 off_t findLocate(off_t hv , Index *indexTable){
