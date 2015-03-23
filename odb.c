@@ -29,7 +29,7 @@ struct Config{
 		unsigned int OBJSIZE;
 		unsigned char curFid;
 		off_t offset;
-		int ifFull; //TODO
+		int isFull; //TODO
 };
 typedef struct Index Index;
 typedef struct Config Config;
@@ -47,6 +47,8 @@ int putObject(void *start , off_t size , char *fileprefix , unsigned char *fid ,
 int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , off_t offset );
 size_t receiveObj(int fd,char * obj);
 off_t getIndex(unsigned char *md5 , Index * indexTable);
+off_t getItem( Index *indexTable , unsigned char *md5out , char* buffer);
+int putItem(Index * indexTable , char *buffer , off_t size  );
 void saveDB();
 //TODO saveIndex()
 /*
@@ -152,6 +154,9 @@ int main(int argc , char *argv[])
 		char obj[DB.OBJSIZE];//TODO use malloc and check
 		
 		
+		
+		
+		
 		off_t bytes=0,index=0;
 		char str[]="abcdefg\n";
 		char str2[1000];
@@ -165,7 +170,10 @@ int main(int argc , char *argv[])
 		index = getIndex(md5out , indexTable);
 		if(index < 0 ){
 				printf("%zd\n",index);
-				putObject(buffer , bytes , DB.PATH , &DB.curFid , &DB.offset);
+				//putObject(buffer , bytes , DB.PATH , &DB.curFid , &DB.offset);
+				putObject(buffer , bytes , DB.PATH ,(unsigned char ) 0 , 0);
+				getObject(buffer , bytes , DB.PATH , (unsigned char) 0 , 0);
+				write(STDOUT_FILENO , buffer , bytes );
 		}
 		return 0;
 		//if( n >0 && (getObject(buffer , n , DB.PATH , DB)))
@@ -356,4 +364,12 @@ int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , 
 		}
 		return verify;
 }
+off_t getItem( Index *indexTable , unsigned char *md5out , char* buffer){
+		//TODO maybe use filename to get md5out
+		off_t index=-1;
+		
+		index = getIndex(md5out , indexTable);
 
+}
+int putItem(Index * indexTable , char *buffer , off_t size  ){
+}
