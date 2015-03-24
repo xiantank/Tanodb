@@ -25,7 +25,18 @@ typedef enum{
 		INDEX_DELETE = 1,
 		INDEX_COLLISION = 2,
 		INDEX_EXIST = (1<<7)
-}indexFlag;
+}IndexFlag;
+typedef enum{
+		ARG_DEFAULT = 1,
+		ARG_INIT = (1<<1),
+		ARG_PATH = (1<<2),
+		ARG_MAXOBJSIZE = (1<<3),
+		ARG_BUCKETSIZE = (1<<4),
+		ARG_BUCKETNUM = (1<<)5,
+		ARG_DBFILESIZE = (1<<6),
+		ARG_DBFILENUM = (1<<7),
+}ArgFlag;
+
 struct Config{
 		char PATH[100];
 		int FILENUM;
@@ -95,27 +106,27 @@ int main(int argc , char *argv[])
 				switch(c){
 						case 'f' : 
 							DB.FILENUM = atoi(optarg);
-							argFlag = argFlag | 1<<7;
+							argFlag = argFlag | ARG_DBFILENUM;
 							break;
 						case 's' : 
 							DB.MAXFILESIZE = (off_t)atol(optarg);
-							argFlag = argFlag | 1<<6;
+							argFlag = argFlag | ARG_DBFILESIZE;
 							break;
 						case 'n' : 
 							DB.BUCKETNUM = (size_t)atol(optarg);
-							argFlag = argFlag | 1<<5;
+							argFlag = argFlag | ARG_BUCKETNUM;
 							break;
 						case 'b' : 
 							DB.BUCKETSIZE = atoi(optarg);
-							argFlag = argFlag | 1<<4;
+							argFlag = argFlag | ARG_BUCKETSIZE;
 							break;
 						case 'o' : 
 							DB.OBJSIZE = (unsigned int)atoi(optarg);
-							argFlag = argFlag | 1<<3;
+							argFlag = argFlag | ARG_MAXOBJSIZE;
 							break;
 						case 'p' : 
 							strcpy(DB.PATH,optarg);
-							argFlag = argFlag | 1<<2;
+							argFlag = argFlag | ARG_PATH;
 							break;
 						case 'i' : 
 							if(argFlag!=0){
@@ -124,7 +135,7 @@ int main(int argc , char *argv[])
 									exit(1);
 							}
 							init();	//init DB setting 
-							argFlag = argFlag | 1<<1;
+							argFlag = argFlag | ARG_INIT;
 							break;
 						case 'd' : 
 							if(argFlag != 2){//NOT REALLY USE!!!
@@ -133,19 +144,15 @@ int main(int argc , char *argv[])
 									exit(1);
 							}
 							init();	//init DB setting 
-							argFlag = argFlag | 1;
+							argFlag = argFlag | ARG_DEFAULT;
 							break;
 				}
 		}
-		if(argFlag & 2){//that is must init
-				if(! (argFlag & 2)){//no init argument
-						fprintf(stderr,"argument init must placed at the top\n%s --init [options]\n",argv[0]);
-						exit(1);
-				}
+		if(argFlag & ARG_INIT){//that is must init
 				saveDB();
 				exit(0);
 
-		}else if(argFlag == (1<<2)){//only arg:path
+		}else if(argFlag == (ARG_PATH)){//only arg:path
 				char dbini[100];
 				sprintf(dbini,"%sdb.ini",DB.PATH);
 				getVariable( (void *)&DB, sizeof(DB) , 1 , dbini);
@@ -363,26 +370,32 @@ int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , 
 }
 off_t getItem( Index *indexTable , unsigned char *md5out , unsigned char* buffer){
 		//TODO maybe use filename to get md5out
-		off_t index=-1;
+		off_t index=-1,bytes = 0;
 		
 		index = getIndex(md5out , indexTable);
 		if(index == -1 ) return -1;
 		//TODO if( md5 != iT.md5 && iT.flag==COLLISION)
-		return getObject(buffer , indexTable[index].size , DB.PATH , indexTable[index].fid ,(off_t)indexTable[index].offset);
+		bytes = getObject(buffer , indexTable[index].size , DB.PATH , indexTable[index].fid ,(off_t)indexTable[index].offset);
+		if(bytes != indexTable[index].size){//TODO error handle
+		}
+		return index;
 
 
 }
 off_t putItem(Index * indexTable ,unsigned char *buffer , off_t size  ){
 		unsigned char md5out[MD5_DIGEST_LENGTH];
-		off_t index = -1 , startOffset;
+		off_t index = -1 , startOffset , bytes;
 		md5(buffer , md5out);
 		index = getIndex(md5out , indexTable);
 		if(index != -1){//it found in table
 				return index;
 		}
 		startOffset = DB.offset;
-		putObject( buffer , size , DB.PATH , &DB.curFid , &DB.offset);
-		return updateIndex(indexTable , md5out , DB.curFid , startOffset , size);
+		bytes = putObject( buffer , size , DB.PATH , &DB.curFid , &DB.offset);
+		index = updateIndex(indexTable , md5out , DB.curFid , startOffset , size);
+		if(bytes != indexTable[index].size){//TODO error handle
+		}
+		return index;
 
 
 }
