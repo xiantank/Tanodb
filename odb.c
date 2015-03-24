@@ -32,9 +32,9 @@ typedef enum{
 		ARG_PATH = (1<<2),
 		ARG_MAXOBJSIZE = (1<<3),
 		ARG_BUCKETSIZE = (1<<4),
-		ARG_BUCKETNUM = (1<<)5,
+		ARG_BUCKETNUM = (1<<5),
 		ARG_DBFILESIZE = (1<<6),
-		ARG_DBFILENUM = (1<<7),
+		ARG_DBFILENUM = (1<<7)
 }ArgFlag;
 
 struct Config{
