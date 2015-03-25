@@ -41,7 +41,9 @@ typedef enum{
 typedef enum{
 		ACTION_FIND = 		1,
 		ACTION_MD5GET = 	2,
-		ACTION_FILENAMEGET=	3
+		ACTION_FILENAMEGET=	3,
+		ACTION_LIST=		4,
+		ACTION_DELETE=		5
 }ArgAction;
 
 struct Config{
@@ -97,8 +99,8 @@ int main(int argc , char *argv[])
 
 		int c=0;
 		char dbini[100];
-		char* const short_options = "idf:s:n:b:o:p:M:G:PI:";
-		off_t bytes=0,index=0,n;
+		char* const short_options = "b:dD:f:G:iI:LM:n:o:p:Ps:";
+		off_t bytes=0,index=0,n,i;
 		unsigned char md5out[MD5_DIGEST_LENGTH];
 		Index *indexTable;//TODO use malloc and check and memset(indexTable , 0)
 		//char obj[DB.OBJSIZE];//TODO use malloc and check
@@ -115,7 +117,9 @@ int main(int argc , char *argv[])
 				{ "md5GET" , 1 , NULL , 'M'},
 				{ "nameGET" , 1 , NULL , 'G'},
 				{ "idGET" , 1 , NULL , 'I'},
-				{ "PUT" , 1 , NULL , 'P'},
+				{ "PUT" , 0 , NULL , 'P'},
+				{ "list" , 0 , NULL , 'L'},
+				{ "delete" , 1 , NULL , 'D'},
 				{ 0 , 0 , 0 , 0}
 		};
 		int argFlag=0;//fsnbopid ;  8bits!;  76543210 ;128  64  32  16  8  4  2  1
@@ -176,9 +180,9 @@ int main(int argc , char *argv[])
 							break;
 						case 'M' : 
 							hexToMD5(md5out , optarg);
-							bytes = getItem(indexTable , md5out , buffer);
-							fprintf(stderr,"[%zd]\n",bytes);
-							write(STDOUT_FILENO , buffer , bytes );
+							index = getItem(indexTable , md5out , buffer);
+							fprintf(stderr,"[%zd]\n",index);
+							write(STDOUT_FILENO , buffer , indexTable[index].size );
 							for(n=0 ; n < MD5_DIGEST_LENGTH ; n++){
 									printf("%02x",md5out[n]);
 							}
@@ -197,6 +201,33 @@ int main(int argc , char *argv[])
 							for(n=0 ; n < MD5_DIGEST_LENGTH ; n++){
 									printf("%02x",buffer[n]);
 							}
+							exit(0);
+						case 'L' :
+							for(i=0;i<DB.BUCKETNUM;i++){
+									if( ( indexTable[i].indexFlag & INDEX_EXIST)  && !(indexTable[i].indexFlag & INDEX_DELETE)  ){
+											for(n=0 ; n < MD5_DIGEST_LENGTH ; n++){
+													printf("%02x",indexTable[i].MD5[n]);
+											}
+											printf("\n");
+									}
+							}
+							exit(0);
+						case 'D' : 
+							hexToMD5(md5out , optarg);
+							index = getIndex( md5out , indexTable );
+							if(index == -1){// obj not exist
+									fprintf(stderr,"object not exist(n)\n");
+									exit(404);
+							}
+							if(indexTable[index].indexFlag & INDEX_DELETE){//obj not exist
+									fprintf(stderr,"object not exist(y)\n");
+									exit(404);
+							}
+							else{//do delete
+									indexTable[index].indexFlag |= INDEX_DELETE;
+							}
+							fprintf(stderr,"[%zd]\n",index);
+							saveIndex(indexTable);
 							exit(0);
 				}
 		}
@@ -267,11 +298,15 @@ off_t getIndex(unsigned char *md5 , Index * indexTable){
 off_t findIndex(off_t hv , Index *indexTable){
 		if( indexTable[hv].indexFlag & INDEX_EXIST){// check is INDEX_EXIST //TODO set flag
 				if(indexTable[hv].indexFlag & INDEX_DELETE){// INDEX_DELETE){ //TODO set flag
+						return -1;
 				}
 				else if(memcmp(indexTable[hv].MD5 , md5 , 16)){
 						return hv;
 				}
-				return findIndex(indexTable[hv].collision , indexTable);
+				else if(indexTable[hv].indexFlag & INDEX_COLLISION){
+						return findIndex(indexTable[hv].collision , indexTable);
+				}
+				return -1;
 		}
 		else {
 				return -1;
@@ -411,7 +446,7 @@ int getVariable(void *start, int size , int nnum , char *filename){
 		fd = open(filename , O_RDONLY);
 		verify=read(fd , start , size * nnum);
 		if(verify != (size * nnum)){
-				fprintf(stderr , "get error\n");
+				fprintf(stderr , "get error[%s]\n",filename);
 				exit(3);
 				//TODO some error handle
 		}
@@ -457,12 +492,12 @@ int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , 
 }
 off_t getItem( Index *indexTable , unsigned char *md5out , unsigned char* buffer){
 		//TODO maybe use filename to get md5out
-		off_t index=-1,bytes = 0;
+		off_t index=-1,bytes = 0 , offset=0;
 		
 		index = getIndex(md5out , indexTable);
 		if(index == -1 ) return -1;
-		//TODO if( md5 != iT.md5 && iT.flag==COLLISION)
-		bytes = getObject(buffer , indexTable[index].size , DB.PATH , indexTable[index].fid ,(off_t)indexTable[index].offset);
+		bytes = getObject(buffer , indexTable[index].size , DB.PATH , indexTable[index].fid 
+							,(off_t)bytesToOffset(indexTable[index].offset,INDEX_OFFSET_LENGTH ));
 		if(bytes != indexTable[index].size){//TODO error handle
 		}
 		return index;
