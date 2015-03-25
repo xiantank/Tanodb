@@ -94,7 +94,7 @@ unsigned char hexToChar(char c);
 /*
  *main function
 */
-int main(int argc , char *argv[])
+int main(int argc , char *argv[] , char *envp[])
 {
 
 		int c=0;
@@ -122,6 +122,11 @@ int main(int argc , char *argv[])
 				{ "delete" , 1 , NULL , 'D'},
 				{ 0 , 0 , 0 , 0}
 		};
+		/*
+		* cgi
+		*/
+		//getenv("CONTENT_LENGTH");
+
 		int argFlag=0;//fsnbopid ;  8bits!;  76543210 ;128  64  32  16  8  4  2  1
 		while((c = getopt_long (argc, argv, short_options, long_options, NULL)) != -1){
 				switch(c){
