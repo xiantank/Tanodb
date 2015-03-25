@@ -13,13 +13,13 @@ const int INDEX_OFFSET_LENGTH = 5;
 /* 
  * structure declare
  */
-struct Index{//use 30 bytes per index
+struct Index{
 		unsigned char MD5[MD5_DIGEST_LENGTH] ;
 		unsigned char fid;
-		unsigned char offset[5];//maxfilesize is 1T; use fixxed offset;
+		unsigned char offset[5];//maxfilesize is 1T; use fixed offset;
 		unsigned int size;	//object size limit : 1G
 		int collision;
-		unsigned char indexFlag;// 1:delete 2:collision
+		unsigned char indexFlag;// see IndexFlag
 };
 typedef enum{
 		INDEX_DELETE = 1,
@@ -55,7 +55,7 @@ struct Config{
 		unsigned int OBJSIZE;
 		unsigned char curFid;
 		off_t offset;
-		int isFull; //TODO
+		int isFull;
 };
 typedef struct Index Index;
 typedef struct Config Config;
@@ -69,8 +69,6 @@ unsigned char buffer[300000];
  */
 int init();
 int getVariable(void *start, int size , int nnum , char *filename);
-int putObject(void *start , off_t size , char *fileprefix , unsigned char *fid , off_t *offset );
-int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , off_t offset );
 size_t receiveObj(int fd,unsigned char * obj);
 off_t getIndex(unsigned char *md5 , Index * indexTable);
 off_t getItem( Index *indexTable , unsigned char *md5out , unsigned char* buffer);
@@ -80,6 +78,8 @@ void saveIndex(Index *indexTable);
 /*
  * tool function
 */
+int putObject(void *start , off_t size , char *fileprefix , unsigned char *fid , off_t *offset );
+int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , off_t offset );
 int saveVariable(void *start, int size , int nnum , char *filename);
 unsigned char *md5(char *in , unsigned char * out);
 int readString(char **src , char * dst , int length);//src wiil move to new location
@@ -510,6 +510,7 @@ off_t putItem(Index * indexTable ,unsigned char *buffer , off_t size  ){
 		md5(buffer , md5out);
 		index = getIndex(md5out , indexTable);
 		if(index != -1){//it found in table
+				memcpy(buffer,md5out,MD5_DIGEST_LENGTH);
 				return index;
 		}
 		startOffset = DB.offset;
