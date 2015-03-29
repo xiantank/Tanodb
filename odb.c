@@ -99,9 +99,10 @@ int main(int argc , char *argv[] , char *envp[])
 
 		int c=0;
 		char dbini[100];
-		char* const short_options = "b:dD:f:G:iI:LM:n:o:p:Ps:";
+		char* const short_options = "b:dD:f:F:G:iI:LM:n:o:p:Ps:";
 		off_t bytes=0,index=0,n,i;
 		unsigned char md5out[MD5_DIGEST_LENGTH];
+		int fd;
 		Index *indexTable;//TODO use malloc and check and memset(indexTable , 0)
 		//char obj[DB.OBJSIZE];//TODO use malloc and check
 		struct option long_options[] = {
@@ -118,6 +119,7 @@ int main(int argc , char *argv[] , char *envp[])
 				{ "nameGET" , 1 , NULL , 'G'},
 				{ "idGET" , 1 , NULL , 'I'},
 				{ "PUT" , 0 , NULL , 'P'},
+				{ "file-put" , 1 , NULL , 'F'},
 				{ "list" , 0 , NULL , 'L'},
 				{ "delete" , 1 , NULL , 'D'},
 				{ 0 , 0 , 0 , 0}
@@ -200,6 +202,15 @@ int main(int argc , char *argv[] , char *envp[])
 						case 'I' : 
 
 							break;
+						case 'F' : 
+							fd = open( optarg , O_RDONLY);
+							if(fd<0){
+									fprintf(stderr, "file open fail\n" );
+									exit(1);
+							}
+							bytes = receiveObj(fd,buffer);
+							n = putItem(indexTable , buffer , bytes);
+							exit(0);
 						case 'P' : 
 							bytes = receiveObj(STDIN_FILENO,buffer);
 							n = putItem(indexTable , buffer , bytes);
