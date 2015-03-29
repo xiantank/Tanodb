@@ -45,17 +45,115 @@ app.use(multer({ dest: './uploads/',
 			}
 }));
 app.get('/',function(req,res){
-		      res.sendfile("index.html");
+				var options = {
+						root: __dirname ,
+						dotfiles: 'deny',
+						headers: {
+								'x-timestamp': Date.now(),
+								'x-sent': true
+						}
+				};
+
+		      res.sendFile("index.html",options);
 });
 
 app.post('/api/photo',function(req,res){
-		if(req.files && !req.files.obj.truncated){
+		var wrong = function(errMessage){
+				var resStr = errMessage || '';
+				response.write(resStr);
+				response.end();
+		}
+		var str2='';
+		url_parts = url.parse(req.url, true);
+		var query = url_parts.query;
+		var para = [];
+		if(req.files && req.files.obj && !req.files.obj.truncated){
 				console.log(req.files);
 				console.log(req.body);
-				res.end("File uploaded."+req.files.obj.path);
+				str2 = JSON.stringify(url_parts) ;
+				if(req.body.action === 'put'){
+						para = ["-p" , req.body.db , "-F" , req.files.obj.path ];
+
+						var odb = spawn('./odb' , para);
+						var str = '';
+						var erstr='';
+						odb.stdout.pipe(process.stdout);
+						odb.stderr.pipe(process.stdout);
+						odb.stdout.on('data', function (data) {
+										str += data;
+										});
+
+						odb.stderr.on('data', function (data) {
+										erstr += data;
+										});
+						odb.on('exit', function (code) {
+										res.write(str + '\nurl parameter :'  + str2 );
+										res.end("File uploaded."+req.files.obj.path);
+										console.log('['+req.files.obj.path+']');
+										fs.unlink('./' + req.files.obj.path) // delete the partially written file
+										});
+						return;
+				}
+				else{
+						return;
+				}
+/*				var cat = spawn('cat' , ['./'+req.files.obj.path]);
+				var odb = spawn('./odb' , para);
+				cat.stdout.on('data' , function (data){
+								odb.stdin.write(data);
+								odb.stdin.end();  
+						});
+				odb.stdout.pipe(process.stdout);
+				odb.stderr.pipe(process.stdout);
+				str = '';
+				erstr='';
+				odb.stdout.on('data', function (data) {
+						str += data;
+				});
+
+				odb.stderr.on('data', function (data) {
+						erstr += data;
+				});
+
+				odb.on('close', function (code) {
+								res.write(str + '\nurl parameter :'  + str2 );
+								res.end("File uploaded."+req.files.obj.path);
+								//response.end();
+				});
+	*/
 		}
 		else{
-				res.end("File upload FAIL.");
+				if( req.body && (req.body.action === 'md5get') ){
+					if(req.body.md5){
+						para = ["-p",req.body.db,"-M",req.body.md5];
+					}else{
+						wrong("error argument<br\\>\r\n");
+						return;
+					}
+					var odb = spawn('./odb' , para);
+					var str = '';
+					var erstr='';
+					//res.set({'Content-Type: ':'application/octet-stream'});
+					res.set({'Content-disposition':'attachment'});
+					odb.stdout.on('data', function (data) {
+									res.write(data);
+									str += data;
+									});
+
+					odb.stderr.on('data', function (data) {
+									erstr += data;
+									});
+					odb.on('close', function (code) {
+							//console.log('md5get: '+req.body.md5);
+							console.log(str.length);
+									//res.write();
+									res.end();
+
+									});
+					return;
+				}
+
+				//res.end("File upload FAIL.");
 		}
 });
 app.post('/odb/*',function(request, response){
@@ -72,12 +170,11 @@ app.post('/odb/*',function(request, response){
 						var para = [];
 						url_parts = url.parse(request.url, true);
 						var query = url_parts.query;
-						console.log(JSON.stringify(url_parts) );
+						str2 = JSON.stringify(url_parts) ;
 						var wrong = function(errMessage){
 								var resStr = errMessage || '';
 								response.write(resStr);
 								response.end();
-
 						}
 						/*for(var key in query){
 						para.push(key);
@@ -97,25 +194,27 @@ app.post('/odb/*',function(request, response){
 								}
 						}else if(true){
 						}
-						var proc = spawn('./a.out' , para);
+						var cat = spawn('cat' , ['Makefile']);
+						var odb = spawn('./a.out' , para);
 
-						proc.stdout.pipe(process.stdout);
-						proc.stdin.write(body);
-						proc.stdin.end();  
+
+						cat.stdout.on('data' , function (data){
+								odb.stdin.write(data);
+								odb.stdin.write(body);
+								odb.stdin.end();  
+						});
+						odb.stdout.pipe(process.stdout);
 						str = '';
 						erstr=''
-						proc.stdout.on('data', function (data) {
+						odb.stdout.on('data', function (data) {
 								str += data;
 						});
 
-						proc.stderr.on('data', function (data) {
+						odb.stderr.on('data', function (data) {
 								erstr += data;
 						});
 
-						proc.on('close', function (code) {
-								  console.log('child process exited with code ' + code);
-								  console.log(str);
-
+						odb.on('close', function (code) {
 								  response.write(str + '\nurl parameter :'  + str2 );
 								  response.end();
 						});
