@@ -74,7 +74,7 @@ off_t getIndex(unsigned char *md5 , Index * indexTable);
 off_t getItem( Index *indexTable , unsigned char *md5out , unsigned char* buffer);
 off_t putItem(Index * indexTable , unsigned char *buffer , off_t size  );
 void saveDB();
-void saveIndex(Index *indexTable);
+void saveIndex(Index *indexTable);//TODO only save modify index
 /*
  * tool function
 */
@@ -188,11 +188,15 @@ int main(int argc , char *argv[] , char *envp[])
 						case 'M' : 
 							hexToMD5(md5out , optarg);
 							index = getItem(indexTable , md5out , buffer);
-							fprintf(stderr,"[%zd]\n",index);
-							write(STDOUT_FILENO , buffer , indexTable[index].size );
-							for(n=0 ; n < MD5_DIGEST_LENGTH ; n++){
-									printf("%02x",md5out[n]);
+//							fprintf(stderr,"[%zd]\n",index);
+							if(index==-1){
+									fprintf(stderr , "obj not exist\n");
+									exit(1);
 							}
+							write(STDOUT_FILENO , buffer , indexTable[index].size );
+/*							for(n=0 ; n < MD5_DIGEST_LENGTH ; n++){
+									printf("%02x",md5out[n]);
+							}*/
 							exit(0);
 							return 0;
 
@@ -210,12 +214,15 @@ int main(int argc , char *argv[] , char *envp[])
 							}
 							bytes = receiveObj(fd,buffer);
 							n = putItem(indexTable , buffer , bytes);
+							for(n=0 ; n < MD5_DIGEST_LENGTH ; n++){
+									printf("%02x",buffer[n]);
+							}
 							exit(0);
 						case 'P' : 
 							bytes = receiveObj(STDIN_FILENO,buffer);
 							n = putItem(indexTable , buffer , bytes);
 							for(n=0 ; n < MD5_DIGEST_LENGTH ; n++){
-									printf("%02x",buffer[n]);
+									fprintf(stdout,"%02x",buffer[n]);
 							}
 							exit(0);
 						case 'L' :
@@ -527,6 +534,8 @@ off_t putItem(Index * indexTable ,unsigned char *buffer , off_t size  ){
 		index = getIndex(md5out , indexTable);
 		if(index != -1){//it found in table
 				memcpy(buffer,md5out,MD5_DIGEST_LENGTH);
+				indexTable[index].indexFlag = indexTable[index].indexFlag & 0xfe; 
+				saveIndex(indexTable);
 				return index;
 		}
 		startOffset = DB.offset;
@@ -564,6 +573,7 @@ off_t findLocate(off_t hv , Index *indexTable){
 		for(i=0 ; i<DB.BUCKETNUM ; i++,hv++){
 				if(i == DB.BUCKETNUM) hv %= DB.BUCKETNUM;
 				if(indexTable[hv].indexFlag & INDEX_EXIST){
+						indexTable[hv].indexFlag = indexTable[hv].indexFlag | INDEX_COLLISION;
 						//do nothing
 				}
 				else{
