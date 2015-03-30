@@ -20,6 +20,14 @@ struct Index{
 		unsigned int size;	//object size limit : 1G
 		int collision;
 		unsigned char indexFlag;// see IndexFlag
+		int ref;
+};
+struct FileIndex{
+		char filename[50];
+		unsigned char MD5[MD5_DIGEST_LENGTH];
+		off_t index;
+		unsigned char indexFlag;
+
 };
 typedef enum{
 		INDEX_DELETE = 1,
@@ -27,9 +35,14 @@ typedef enum{
 		INDEX_EXIST = (1<<7)
 }IndexFlag;
 typedef enum{
+		true = 1,
+		false =0
+}BOOLEAN;
+typedef enum{
 		ARG_DEFAULT = 	(1<<8),
 		ARG_INIT = 		(1<<9),
 		ARG_PATH = 		(1<<10),
+		ARG_FILENAME =	(1<<16),
 		ARG_MAXOBJSIZE =(1<<11),
 		ARG_BUCKETSIZE =(1<<12),
 		ARG_BUCKETNUM = (1<<13),
@@ -59,6 +72,7 @@ struct Config{
 };
 typedef struct Index Index;
 typedef struct Config Config;
+typedef struct FileIndex FileIndex;
 /*
  * global config varible declare
  */
@@ -71,10 +85,11 @@ int init();
 int getVariable(void *start, int size , int nnum , char *filename);
 size_t receiveObj(int fd,unsigned char * obj);
 off_t getIndex(unsigned char *md5 , Index * indexTable);
-off_t getItem( Index *indexTable , unsigned char *md5out , unsigned char* buffer);
-off_t putItem(Index * indexTable , unsigned char *buffer , off_t size  );
+off_t getItem( Index *indexTable , FileIndex *fileIndex,char *filename , unsigned char *md5out , unsigned char* buffer , int byName);
+off_t putItem(Index * indexTable , FileIndex *fileIndex , char *filename ,unsigned char *buffer , off_t size , int byName );
 void saveDB();
 void saveIndex(Index *indexTable);//TODO only save modify index
+void saveFileIndex(FileIndex *fileIndex);
 /*
  * tool function
 */
@@ -88,7 +103,7 @@ void offsetTobytes(unsigned char *c_offset , off_t offset, int length);
 off_t getHV(unsigned char *md5);
 off_t findIndex(off_t hv , Index *indexTable);
 off_t findLocate(off_t hv , Index *indexTable);
-off_t updateIndex(Index *indexTable , unsigned char *md5 , unsigned char fid , off_t offset , off_t size );
+off_t updateIndex(Index *indexTable , FileIndex *fileIndex ,char *filename, unsigned char *md5 , unsigned char fid , off_t offset ,off_t size );
 void hexToMD5(unsigned char* md5out , char *in);
 unsigned char hexToChar(char c);
 /*
@@ -99,21 +114,25 @@ int main(int argc , char *argv[] , char *envp[])
 
 		int c=0;
 		char dbini[100];
-		char* const short_options = "b:dD:f:F:G:iI:LM:n:o:p:Ps:";
+		char filename[100]="";
+		char* const short_options = "b:dD:f:F:G:iI:LM:n:o:p:Ps:u:";
 		off_t bytes=0,index=0,n,i;
 		unsigned char md5out[MD5_DIGEST_LENGTH];
 		int fd;
+		int argFlag=0;//fsnbopid ;  8bits!;  76543210 ;128  64  32  16  8  4  2  1
 		Index *indexTable;//TODO use malloc and check and memset(indexTable , 0)
+		FileIndex *fileIndex;//TODO use malloc and check and memset(indexTable , 0)
 		//char obj[DB.OBJSIZE];//TODO use malloc and check
 		struct option long_options[] = {
 				{ "init" , 0 , NULL , 'i' },
 				{ "default" , 0 , NULL , 'd' },
-				{ "fnum" , 1 , NULL , 'f' },
+				{ "fnum" , 1 , NULL , 'u' },
 				{ "fsize" , 1 , NULL , 's' },
 				{ "bnum" , 1 , NULL , 'n' },
 				{ "bsize" , 1 , NULL , 'b' },
 				{ "maxobjsize" , 1 , NULL , 'o' },
 				{ "path" , 1 , NULL , 'p' },
+				{ "filename" , 1 , NULL , 'f' },
 
 				{ "md5GET" , 1 , NULL , 'M'},
 				{ "nameGET" , 1 , NULL , 'G'},
@@ -129,10 +148,9 @@ int main(int argc , char *argv[] , char *envp[])
 		*/
 		//getenv("CONTENT_LENGTH");
 
-		int argFlag=0;//fsnbopid ;  8bits!;  76543210 ;128  64  32  16  8  4  2  1
 		while((c = getopt_long (argc, argv, short_options, long_options, NULL)) != -1){
 				switch(c){
-						case 'f' : 
+						case 'u' : 
 							DB.FILENUM = atoi(optarg);
 							argFlag = argFlag | ARG_DBFILENUM;
 							break;
@@ -152,6 +170,11 @@ int main(int argc , char *argv[] , char *envp[])
 							DB.OBJSIZE = (unsigned int)atoi(optarg);
 							argFlag = argFlag | ARG_MAXOBJSIZE;
 							break;
+						case 'f' :
+							argFlag = argFlag | ARG_FILENAME;
+							sprintf(dbini,"%sfn.inx",DB.PATH);
+							getVariable( (void *)fileIndex, sizeof(FileIndex) , DB.BUCKETNUM , dbini);
+							break;
 						case 'p' : 
 							strcpy(DB.PATH,optarg);
 							argFlag = argFlag | ARG_PATH;
@@ -159,9 +182,12 @@ int main(int argc , char *argv[] , char *envp[])
 									sprintf(dbini,"%sdb.ini",DB.PATH);
 									getVariable( (void *)&DB, sizeof(DB) , 1 , dbini);
 									indexTable = (Index *) malloc ( sizeof(Index) * DB.BUCKETNUM);
+									fileIndex = (FileIndex *) malloc ( sizeof(FileIndex) * DB.BUCKETNUM);
 									memset(indexTable , 0 , sizeof(Index)*DB.BUCKETNUM);
 									sprintf(dbini,"%sdb.inx",DB.PATH);
 									getVariable( (void *)indexTable, sizeof(Index) , DB.BUCKETNUM , dbini);
+									sprintf(dbini,"%sfn.inx",DB.PATH);
+									getVariable( (void *)fileIndex, sizeof(FileIndex) , DB.BUCKETNUM , dbini);
 									strcpy(DB.PATH,optarg);
 							}
 							break;
@@ -173,7 +199,9 @@ int main(int argc , char *argv[] , char *envp[])
 							}
 							init();	//init DB setting 
 							indexTable = (Index *) malloc ( sizeof(Index) * DB.BUCKETNUM);
+							fileIndex = (FileIndex *) malloc ( sizeof(FileIndex) * DB.BUCKETNUM);
 							memset(indexTable , 0 , sizeof(Index)*DB.BUCKETNUM);
+							memset(fileIndex , 0 , sizeof(FileIndex)*DB.BUCKETNUM);
 							argFlag = argFlag | ARG_INIT;
 							break;
 						case 'd' : 
@@ -187,7 +215,7 @@ int main(int argc , char *argv[] , char *envp[])
 							break;
 						case 'M' : 
 							hexToMD5(md5out , optarg);
-							index = getItem(indexTable , md5out , buffer);
+							index = getItem(indexTable , fileIndex , filename , md5out , buffer , false );
 //							fprintf(stderr,"[%zd]\n",index);
 							if(index==-1){
 									fprintf(stderr , "obj not exist\n");
@@ -202,7 +230,14 @@ int main(int argc , char *argv[] , char *envp[])
 
 							break;
 						case 'G' : 
-							break;
+							index = getItem(indexTable , fileIndex , optarg , md5out , buffer , true );
+//							fprintf(stderr,"[%zd]\n",index);
+							if(index==-1){
+									fprintf(stderr , "obj not exist\n");
+									exit(1);
+							}
+							write(STDOUT_FILENO , buffer , indexTable[index].size );
+							exit(0);
 						case 'I' : 
 
 							break;
@@ -213,14 +248,17 @@ int main(int argc , char *argv[] , char *envp[])
 									exit(1);
 							}
 							bytes = receiveObj(fd,buffer);
-							n = putItem(indexTable , buffer , bytes);
+							index = putItem(indexTable , fileIndex , optarg , buffer , bytes , true);
+							if(index == -1){
+									fprintf(stderr , "filename exist\n");
+							}
 							for(n=0 ; n < MD5_DIGEST_LENGTH ; n++){
 									printf("%02x",buffer[n]);
 							}
 							exit(0);
 						case 'P' : 
 							bytes = receiveObj(STDIN_FILENO,buffer);
-							n = putItem(indexTable , buffer , bytes);
+							index = putItem(indexTable , fileIndex , filename , buffer , bytes , false);
 							for(n=0 ; n < MD5_DIGEST_LENGTH ; n++){
 									fprintf(stdout,"%02x",buffer[n]);
 							}
@@ -262,6 +300,7 @@ int main(int argc , char *argv[] , char *envp[])
 		if(argFlag & ARG_INIT){//that is must init
 				saveDB();
 				saveIndex(indexTable);
+				saveFileIndex(fileIndex);
 				exit(0);
 
 		}else if(argFlag == (ARG_PATH)){//only arg:path
@@ -276,11 +315,11 @@ int main(int argc , char *argv[] , char *envp[])
 
 
 		bytes = receiveObj(STDIN_FILENO,buffer);
-		n = putItem(indexTable , buffer , bytes);
+		n = putItem(indexTable , fileIndex , filename , buffer , bytes, false);
 		fprintf(stderr , "[%zd]",n);
 		md5(buffer,md5out);
 		memset(buffer , 0 ,sizeof(buffer));
-		bytes = getItem(indexTable , md5out , buffer);
+		bytes = getItem(indexTable , fileIndex , filename ,  md5out , buffer , true);
 		write(STDOUT_FILENO , buffer , bytes );
 		fprintf(stderr , "[%zd]",bytes);
 
@@ -311,6 +350,16 @@ off_t getHV(unsigned char *md5){
 		tmp = bytesToOffset(&md5[0],8) ^ bytesToOffset(&md5[8],8);
 		if(tmp < 0 ) tmp = (tmp * -1);
 		return tmp % DB.BUCKETNUM;
+}
+off_t getIndexbyName(char *filename , FileIndex *fileIndex){
+		unsigned char md5out[MD5_DIGEST_LENGTH];
+		md5(filename , md5out);
+
+		off_t hv = getHV(md5out);
+		if(fileIndex[hv].indexFlag & INDEX_EXIST){
+				return fileIndex[hv].index;
+		}
+		return fileIndex[hv].index;
 }
 off_t getIndex(unsigned char *md5 , Index * indexTable){
 		off_t hv = getHV(md5);
@@ -453,6 +502,16 @@ void saveDB(){
 		}
 
 }
+void saveFileIndex(FileIndex *fileIndex){
+		char fileIndexFile[100];
+		int tmp=-2;
+		sprintf(fileIndexFile,"%sfn.inx",DB.PATH);
+		tmp = saveVariable( (void *) fileIndex, sizeof(FileIndex) , DB.BUCKETNUM , fileIndexFile);
+		if(tmp != (sizeof(FileIndex) * DB.BUCKETNUM) ){
+				fprintf(stderr , "[%d] saveFileIndex() error\n",tmp);
+				exit(2);
+		}
+}
 void saveIndex(Index *indexTable){
 		char indexFile[100];
 		int tmp=-2;
@@ -513,11 +572,14 @@ int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , 
 		}
 		return verify;
 }
-off_t getItem( Index *indexTable , unsigned char *md5out , unsigned char* buffer){
+off_t getItem( Index *indexTable , FileIndex *fileIndex , char *filename , unsigned char *md5out , unsigned char* buffer , int byName){
 		//TODO maybe use filename to get md5out
 		off_t index=-1,bytes = 0 , offset=0;
-		
-		index = getIndex(md5out , indexTable);
+		if(byName == 1){
+				index = getIndexbyName(filename , fileIndex);
+		}else{
+				index = getIndex(md5out , indexTable);
+		}
 		if(index == -1 ) return -1;
 		bytes = getObject(buffer , indexTable[index].size , DB.PATH , indexTable[index].fid 
 							,(off_t)bytesToOffset(indexTable[index].offset,INDEX_OFFSET_LENGTH ));
@@ -527,36 +589,51 @@ off_t getItem( Index *indexTable , unsigned char *md5out , unsigned char* buffer
 
 
 }
-off_t putItem(Index * indexTable ,unsigned char *buffer , off_t size  ){
+off_t putItem(Index * indexTable , FileIndex *fileIndex,char *filename  ,unsigned char *buffer , off_t size , int byName ){
 		unsigned char md5out[MD5_DIGEST_LENGTH];
-		off_t index = -1 , startOffset , bytes;
+		off_t index = -1 , f_index = -1 , startOffset , bytes;
 		md5(buffer , md5out);
 		index = getIndex(md5out , indexTable);
+		f_index = getIndexbyName(filename , fileIndex);
+		if(fileIndex[f_index].indexFlag & INDEX_EXIST){
+				return -1;
+		}
 		if(index != -1){//it found in table
+				//TODO save fileIndex;
 				memcpy(buffer,md5out,MD5_DIGEST_LENGTH);
 				indexTable[index].indexFlag = indexTable[index].indexFlag & 0xfe; 
 				saveIndex(indexTable);
+				saveFileIndex(fileIndex);
 				return index;
 		}
 		startOffset = DB.offset;
 		bytes = putObject( buffer , size , DB.PATH , &DB.curFid , &DB.offset);
-		index = updateIndex(indexTable , md5out , DB.curFid , startOffset , size);
+		index = updateIndex(indexTable , fileIndex , filename , md5out , DB.curFid , startOffset , size);
 		if(bytes != indexTable[index].size){//TODO error handle
 		}
 		memcpy(buffer,md5out,MD5_DIGEST_LENGTH);
 		return index;
-
-
 }
-off_t updateIndex(Index *indexTable , unsigned char *md5 , unsigned char fid , off_t offset , off_t size ){
+off_t updateIndex(Index *indexTable , FileIndex *fileIndex ,char *filename, unsigned char *md5 , unsigned char fid , off_t offset , off_t size ){
 
-		off_t locate =-1;
+		off_t locate =-1 , f_index;
 		locate = findLocate(getHV(md5) , indexTable);
 		if(locate == -1){
 				DB.isFull = 1;
 				fprintf(stderr , "DB is full (index num full)\n");
 				exit(5);
 		}
+		//TODO update fileIndex
+		f_index = getIndexbyName(filename , fileIndex);
+		memcpy(fileIndex[f_index].filename,filename , strlen(filename) );
+		memcpy ( fileIndex[f_index].MD5  , md5 , MD5_DIGEST_LENGTH);
+		fileIndex[f_index].index = locate;
+		fileIndex[f_index].indexFlag = INDEX_EXIST;
+		saveFileIndex(fileIndex);
+
+
+
+
 		memcpy(indexTable[locate].MD5 , md5 , MD5_DIGEST_LENGTH );
 		indexTable[locate].fid = DB.curFid ;
 		offsetTobytes(indexTable[locate].offset , offset , INDEX_OFFSET_LENGTH) ;
