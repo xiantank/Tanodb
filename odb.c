@@ -77,13 +77,14 @@ typedef struct FileIndex FileIndex;
  * global config varible declare
  */
 Config DB;
-unsigned char buffer[300000];
+#define BUFFERSIZE 3000000
+unsigned char buffer[BUFFERSIZE];
 /*
  * function declare
  */
 int init();
 int getVariable(void *start, int size , int nnum , char *filename);
-size_t receiveObj(int fd,unsigned char * obj);
+size_t receiveObj(int fd,unsigned char * obj , off_t bufferSize);
 off_t getIndex(unsigned char *md5 , Index * indexTable);
 off_t getIndexbyName(char *filename , FileIndex *fileIndex , int isFindex);
 off_t getItem( Index *indexTable , FileIndex *fileIndex,char *filename , unsigned char *md5out , unsigned char* buffer , int byName);
@@ -249,18 +250,31 @@ int main(int argc , char *argv[] , char *envp[])
 									fprintf(stderr, "file open fail\n" );
 									exit(1);
 							}
-							bytes = receiveObj(fd,buffer);
+							bytes = receiveObj(fd,buffer , BUFFERSIZE);
+							if(bytes == -1){
+									fprintf(stderr , "file size limit is %zd" , BUFFERSIZE);
+									exit(5);
+							}
 							index = putItem(indexTable , fileIndex , optarg , buffer , bytes , true);
 							if(index == -1){
 									fprintf(stderr , "filename exist\n");
+									exit(2);
 							}
 							for(n=0 ; n < MD5_DIGEST_LENGTH ; n++){
 									printf("%02x",buffer[n]);
 							}
 							exit(0);
 						case 'P' : 
-							bytes = receiveObj(STDIN_FILENO,buffer);
+							bytes = receiveObj(STDIN_FILENO,buffer , BUFFERSIZE);
+							if(bytes == -1){
+									fprintf(stderr , "file size limit is %zd" , BUFFERSIZE);
+									exit(5);
+							}
 							index = putItem(indexTable , fileIndex , filename , buffer , bytes , false);
+							if(index == -1){
+									fprintf(stderr , "filename exist\n");
+									exit(2);
+							}
 							for(n=0 ; n < MD5_DIGEST_LENGTH ; n++){
 									fprintf(stdout,"%02x",buffer[n]);
 							}
@@ -322,7 +336,7 @@ int main(int argc , char *argv[] , char *envp[])
 
 
 
-		bytes = receiveObj(STDIN_FILENO,buffer);
+		bytes = receiveObj(STDIN_FILENO,buffer, 0);
 		n = putItem(indexTable , fileIndex , filename , buffer , bytes, false);
 		fprintf(stderr , "[%zd]",n);
 		md5(buffer,md5out);
@@ -397,14 +411,18 @@ off_t findIndex(off_t hv , Index *indexTable){
 				return -1;
 		}
 }
-size_t receiveObj(int fd,unsigned char * obj){
-		off_t bytes;
+size_t receiveObj(int fd,unsigned char * obj , off_t bufferSize){
+		off_t bytes,cnt=0;
 		unsigned char *ptr = obj;
 		unsigned char buf[512];
 		//bytes=read(STDIN_FILENO, buf, 512);
 		bytes=read( fd , buf, 512);
 		while(bytes > 0)
 		{
+				cnt+=bytes;
+				if(cnt >= bufferSize){
+						return -1;
+				}
 				memcpy(ptr,buf,bytes);
 				ptr+=bytes;
 				bytes=read(fd, buf, 512);
