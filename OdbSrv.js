@@ -42,8 +42,9 @@ app.use(multer({ dest: './uploads/',
 				return false;
 			},
 			limits:{
-					fileSize: 191010
-					//fileSize:191050 
+					//fileSize: 191010
+					//fileSize: 10485760
+					fileSize: 3000000
 			}
 }));
 app.get('/',function(req,res){
@@ -74,8 +75,6 @@ app.post('/odb/put',function(req,res){
 				res.end();
 		}
 		if(req.files && req.files.obj ){
-				console.log(req.files);
-				console.log(req.body);
 				str2 = JSON.stringify(url_parts) ;
 				if(req.body.action === 'put'){
 						para = ["-p" , req.body.db , "-F" , req.files.obj.path ];
@@ -93,7 +92,7 @@ app.post('/odb/put',function(req,res){
 										erstr += data;
 										});
 						odb.on('exit', function (code) {
-										res.write(str + '\nurl parameter :'  + str2 );
+										res.write(str + '\nurl parameter :'  + str2 + "err:" + erstr);
 										res.end("File uploaded."+req.files.obj.path);
 										console.log('['+req.files.obj.path+']');
 										fs.unlink('./' + req.files.obj.path) // delete the partially written file
@@ -101,34 +100,11 @@ app.post('/odb/put',function(req,res){
 						return;
 				}
 				else{
+						res.end("File upload FAIL.");
 						return;
 				}
-/*				var cat = spawn('cat' , ['./'+req.files.obj.path]);
-				var odb = spawn('./odb' , para);
-				cat.stdout.on('data' , function (data){
-								odb.stdin.write(data);
-								odb.stdin.end();  
-						});
-				odb.stdout.pipe(process.stdout);
-				odb.stderr.pipe(process.stdout);
-				str = '';
-				erstr='';
-				odb.stdout.on('data', function (data) {
-						str += data;
-				});
-
-				odb.stderr.on('data', function (data) {
-						erstr += data;
-				});
-
-				odb.on('close', function (code) {
-								res.write(str + '\nurl parameter :'  + str2 );
-								res.end("File uploaded."+req.files.obj.path);
-								//response.end();
-				});
-	*/
-				//res.end("File upload FAIL.");
 		}
+		res.end("File upload FAIL.");
 });
 
 app.post('/odb/get',function(req,res){
@@ -141,7 +117,7 @@ app.post('/odb/get',function(req,res){
 		url_parts = url.parse(req.url, true);
 		var query = url_parts.query;
 		var para = [];
-		var isFail = false;
+		var resSet = false;
 		//var_print(req);
 		if( req.body && (req.body.action === 'md5') ){
 			if(req.body.value){
@@ -155,16 +131,17 @@ app.post('/odb/get',function(req,res){
 			var str = '';
 			var erstr='';
 			//res.set({'Content-Type: ':'application/octet-stream'});
-			res.set({'Content-disposition':'attachment'});
 			odb.stdout.on('data', function (data) {
+							if(!resSet){
+									res.set({'Content-disposition':'attachment'});
+									resSet = true;
+							}
 							res.write(data);
 							str += data;
 							});
 
 			odb.stderr.on('data', function (data) {
-					console.log(isFail);
-							erstr += data;
-							isFail=true;
+							res.write(data);
 							});
 			odb.on('close', function (code) {
 					//console.log('md5get: '+req.body.md5);
@@ -176,7 +153,7 @@ app.post('/odb/get',function(req,res){
 			return;
 		}else if( req.body && (req.body.action === 'filename') ){
 			if(req.body.value){
-				para = ["-p",req.body.db,"-M",req.body.value];
+				para = ["-p",req.body.db,"-G","uploads/"+req.body.value];
 				console.log(JSON.stringify(para));
 			}else{
 				wrong("error argument<br\\>\r\n");
@@ -186,14 +163,17 @@ app.post('/odb/get',function(req,res){
 			var str = '';
 			var erstr='';
 			//res.set({'Content-Type: ':'application/octet-stream'});
-			res.set({'Content-disposition':'attachment'});
 			odb.stdout.on('data', function (data) {
+							if(!resSet){
+									res.set({'Content-disposition':'attachment'});
+									resSet = true;
+							}
 							res.write(data);
 							str += data;
 							});
 
 			odb.stderr.on('data', function (data) {
-							erstr += data;
+							res.write(data);
 							});
 			odb.on('close', function (code) {
 					//console.log('md5get: '+req.body.md5);
