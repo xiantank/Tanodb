@@ -60,7 +60,7 @@ app.use(express.static(__dirname + '/public'));
 
 		      res.sendFile("index.html",options);
 });*/
-app.post('/odb/put',function(req,res){
+app.post('/odb/:db/put',function(req,res){
 		var wrong = function(errMessage){
 				var resStr = errMessage || '';
 				res.write(resStr);
@@ -78,7 +78,7 @@ app.post('/odb/put',function(req,res){
 		if(req.files && req.files.obj ){
 				str2 = JSON.stringify(url_parts) ;
 				if(req.body.action === 'put'){
-						para = ["-p" , req.body.db , "-F" , req.files.obj.path ];
+						para = ["-p" , req.params.db , "-F" , req.files.obj.path ];
 
 						var odb = spawn('./odb' , para);
 						var str = '';
@@ -107,8 +107,41 @@ app.post('/odb/put',function(req,res){
 		}
 		res.end("File upload FAIL.");
 });
+app.post('/odb/:db/list',function(req,res){
+		var wrong = function(errMessage){
+				var resStr = errMessage || '';
+				res.write(resStr);
+				res.end();
+		}
+		var para = [];
+		var resSet = false;
+		if( req.params && req.params.db  ){
+			para = ["-p",req.params.db,"--list"];
+			var odb = spawn('./odb' , para);
+			var str = '';
+			var erstr='';
+			odb.stdout.on('data', function (data) {
+							if(!resSet){
+									res.set({'Content-disposition':'attachment'});
+									resSet = true;
+							}
+							res.write(data);
+							str += data;
+							});
 
-app.post('/odb/get',function(req,res){
+			odb.stderr.on('data', function (data) {
+							res.write(data);
+							});
+			odb.on('close', function (code) {
+							console.log(str.length);
+							res.end();
+
+							});
+			return;
+		}
+		res.end("File list FAIL.");
+});
+app.post('/odb/:db/get',function(req,res){
 		var wrong = function(errMessage){
 				var resStr = errMessage || '';
 				res.write(resStr);
@@ -122,7 +155,7 @@ app.post('/odb/get',function(req,res){
 		//var_print(req);
 		if( req.body && (req.body.action === 'md5') ){
 			if(req.body.value){
-				para = ["-p",req.body.db,"-M",req.body.value];
+				para = ["-p",req.params.db,"-M",req.body.value];
 				console.log(JSON.stringify(para));
 			}else{
 				wrong("error argument<br\\>\r\n");
@@ -154,7 +187,93 @@ app.post('/odb/get',function(req,res){
 			return;
 		}else if( req.body && (req.body.action === 'filename') ){
 			if(req.body.value){
-				para = ["-p",req.body.db,"-G","uploads/"+req.body.value];
+				para = ["-p",req.params.db,"-G","uploads/"+req.body.value];
+				console.log(JSON.stringify(para));
+			}else{
+				wrong("error argument<br\\>\r\n");
+				return;
+			}
+			var odb = spawn('./odb' , para);
+			var str = '';
+			var erstr='';
+			//res.set({'Content-Type: ':'application/octet-stream'});
+			odb.stdout.on('data', function (data) {
+							if(!resSet){
+									res.set({'Content-disposition':'attachment'});
+									resSet = true;
+							}
+							res.write(data);
+							str += data;
+							});
+
+			odb.stderr.on('data', function (data) {
+							res.write(data);
+							});
+			odb.on('close', function (code) {
+					//console.log('md5get: '+req.body.md5);
+					console.log(str.length);
+							//res.write();
+							res.end();
+
+							});
+			return;
+		}
+
+
+				//res.end("File upload FAIL.");
+});
+
+app.get('/odb/:db/delete/:name',function(req,res){
+		console.log(req.params.name);
+		res.write(JSON.stringify(req.params));
+		res.end();
+		return;
+		var wrong = function(errMessage){
+				var resStr = errMessage || '';
+				res.write(resStr);
+				res.end();
+		}
+		var str2='';
+		url_parts = url.parse(req.url, true);
+		var query = url_parts.query;
+		var para = [];
+		var resSet = false;
+		//var_print(req);
+		if( req.body && (req.body.action === 'md5') ){
+			if(req.body.value){
+				para = ["-p",req.params.db,"-M",req.body.value];
+				console.log(JSON.stringify(para));
+			}else{
+				wrong("error argument<br\\>\r\n");
+				return;
+			}
+			var odb = spawn('./odb' , para);
+			var str = '';
+			var erstr='';
+			//res.set({'Content-Type: ':'application/octet-stream'});
+			odb.stdout.on('data', function (data) {
+							if(!resSet){
+									res.set({'Content-disposition':'attachment'});
+									resSet = true;
+							}
+							res.write(data);
+							str += data;
+							});
+
+			odb.stderr.on('data', function (data) {
+							res.write(data);
+							});
+			odb.on('close', function (code) {
+					//console.log('md5get: '+req.body.md5);
+					console.log(str.length);
+							//res.write();
+							res.end();
+
+							});
+			return;
+		}else if( req.body && (req.body.action === 'filename') ){
+			if(req.body.value){
+				para = ["-p",req.params.db,"-G","uploads/"+req.body.value];
 				console.log(JSON.stringify(para));
 			}else{
 				wrong("error argument<br\\>\r\n");
