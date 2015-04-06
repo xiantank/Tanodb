@@ -47,7 +47,8 @@ app.use(multer({ dest: './uploads/',
 					fileSize: 3000000
 			}
 }));
-app.get('/',function(req,res){
+app.use(express.static(__dirname + '/public'));
+/*app.get('/',function(req,res){
 				var options = {
 						root: __dirname ,
 						dotfiles: 'deny',
@@ -58,7 +59,7 @@ app.get('/',function(req,res){
 				};
 
 		      res.sendFile("index.html",options);
-});
+});*/
 app.post('/odb/put',function(req,res){
 		var wrong = function(errMessage){
 				var resStr = errMessage || '';
@@ -92,7 +93,7 @@ app.post('/odb/put',function(req,res){
 										erstr += data;
 										});
 						odb.on('exit', function (code) {
-										res.write(str + '\nurl parameter :'  + str2 + "err:" + erstr);
+										res.write(str + '\nurl parameter :'  + str2 + "err:[" + erstr + "]");
 										res.end("File uploaded."+req.files.obj.path);
 										console.log('['+req.files.obj.path+']');
 										fs.unlink('./' + req.files.obj.path) // delete the partially written file
