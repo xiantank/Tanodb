@@ -300,7 +300,7 @@ int main(int argc , char *argv[] , char *envp[])
 											if(n){
 													printf(",");
 											}
-											printf("{\"size:\":%zd,\"filename\":\"%s\"}",(off_t)indexTable[fileIndex[i].index].size,fileIndex[i].filename);
+											printf("{\"size\":%zd,\"filename\":\"%s\"}",(off_t)indexTable[fileIndex[i].index].size,fileIndex[i].filename);
 											n++;
 									}
 							}
