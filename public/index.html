@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+<title>
+Data Engineering project 1 - odb
+</title>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+<link rel="stylesheet" href="./style.css">
+
+</head>
+<body>
+
+
+<form id        =  "uploadForm"
+enctype   =  "multipart/form-data"
+action    =  "/odb/put"
+method    =  "post"
+>
+<input type="file" name="obj" id="uploadFile"/>
+<input type="hidden" name="db" value="db" />
+<input type="hidden" name="action" value="put" />
+<input type="submit" value="Upload Image" name="submit">
+</form>
+
+<form id="getFile" action="/odb/get" method="post" >
+<select name="action">
+	<option value="filename">filename</option>
+	<option value="md5">md5</option>
+</select>
+<input type="text" name="value" value="" placeholder="md5/filename"/>
+<input type="hidden" name="db" value="db" />
+<input type="submit" value="GET FILE" name="submit">
+</form>
+<script>
+
+</script>
+</body>
+</html>
