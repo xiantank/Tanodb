@@ -5,15 +5,57 @@
 Data Engineering project 1 - odb
 </title>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
+<!--link rel="stylesheet" href="//www.cs.ccu.edu.tw/~cht99u/src/bootstrap-3.3.4-dist/css/bootstrap.min.css"-->
 <link rel="stylesheet" href="./style.css">
+<script>
+function generalList( objs ){
+		console.log(objs);
+		for(var i in objs){
+				var fileList = document.getElementById("fileList");
+				var list = document.createElement('div');
+				list.setAttribute("class","item-list");
+				var filename = document.createElement("span");
+				//href.setAttribute("href",results[i].url);
+				filename.setAttribute("class","flow-left");
+				filename.innerHTML=objs[i].filename;
+				var filesize = document.createElement("span");
+				filesize.setAttribute("class","flow-right");
+				filesize.innerHTML=objs[i].size;
+				//href.setAttribute("href",results[i].url);
+				list.appendChild(filename);
+				list.appendChild(filesize);
+				//list.appendChild(document.createElement("br"));
+				fileList.appendChild(list);
+		}
+		var $fileList = $( "#fileList" ) , $trash = $( "#trashcan");
+		$( "div", $fileList ).draggable({
+				cancel: "a.ui-icon", // clicking an icon won't initiate dragging
+				revert: "invalid", // when not dropped, the item will revert back to its initial position
+				containment: "document",
+				helper: "clone",
+				cursor: "move"
+				});
+		$trash.droppable({
+				      //accept: "#fileList > div",
+					  //activeClass: "ui-state-highlight",
+					  drop: function( event, ui ) {
+					  		  event.preventDefault();
+					  		  event.stopPropagation();
 
+					  		//console.log(ui.draggable);//( ui.draggable );
+					  		console.log(event.originalEvent);
+					  }
+					  });
+}
+</script>
 </head>
 <body>
 
 
 <form id        =  "uploadForm"
 enctype   =  "multipart/form-data"
-action    =  "/odb/put"
+action    =  "/odb/db/put"
 method    =  "post"
 >
 <input type="file" name="obj" id="uploadFile"/>
@@ -22,7 +64,7 @@ method    =  "post"
 <input type="submit" value="Upload Image" name="submit">
 </form>
 
-<form id="getFile" action="/odb/get" method="post" >
+<form id="getFile" action="/odb/db/get" method="post" >
 <select name="action">
 	<option value="filename">filename</option>
 	<option value="md5">md5</option>
@@ -31,7 +73,33 @@ method    =  "post"
 <input type="hidden" name="db" value="db" />
 <input type="submit" value="GET FILE" name="submit">
 </form>
+<div id="trashcan" class="trashcan">
+</div>
+<div id="fileList" class="list-block">
+
+</div>
 <script>
+//$.ajax($("#listArea").);
+url="/odb/db/list";
+$.ajax({
+	url: url,
+	//data: $('#sentToBack').serialize(),
+	type:"POST",
+	//dataType:'text',
+
+	success: function(msg){
+			console.log("sucess:"+msg);
+			try{
+				generalList( JSON.parse(msg) );
+			}catch(e){
+			console.log(e);
+			return;
+			}
+	},
+	error: function(msg){
+			console.log("error"+msg);
+	}
+});
 
 </script>
 </body>
