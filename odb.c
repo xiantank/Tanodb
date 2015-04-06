@@ -118,7 +118,7 @@ int main(int argc , char *argv[] , char *envp[])
 		char dbini[100];
 		char filename[100]="";
 		char* const short_options = "b:dD:f:F:G:iI:LM:n:o:p:Ps:u:";
-		off_t bytes=0,index=0,n,i;
+		off_t bytes=0,index=0,n,i , f_index;
 		unsigned char md5out[MD5_DIGEST_LENGTH];
 		int fd;
 		int argFlag=0;//fsnbopid ;  8bits!;  76543210 ;128  64  32  16  8  4  2  1
@@ -252,7 +252,7 @@ int main(int argc , char *argv[] , char *envp[])
 							}
 							bytes = receiveObj(fd,buffer , BUFFERSIZE);
 							if(bytes == -1){
-									fprintf(stderr , "file size limit is %zd" , BUFFERSIZE);
+									fprintf(stderr , "file size limit is %d" , BUFFERSIZE);
 									exit(5);
 							}
 							index = putItem(indexTable , fileIndex , optarg , buffer , bytes , true);
@@ -267,7 +267,7 @@ int main(int argc , char *argv[] , char *envp[])
 						case 'P' : 
 							bytes = receiveObj(STDIN_FILENO,buffer , BUFFERSIZE);
 							if(bytes == -1){
-									fprintf(stderr , "file size limit is %zd" , BUFFERSIZE);
+									fprintf(stderr , "file size limit is %d" , BUFFERSIZE);
 									exit(5);
 							}
 							index = putItem(indexTable , fileIndex , filename , buffer , bytes , false);
@@ -289,16 +289,16 @@ int main(int argc , char *argv[] , char *envp[])
 									}
 							}
 							for(i=0;i<DB.BUCKETNUM;i++){
-									if( ( fileIndex[i].indexFlag & INDEX_EXIST) ){
+									if( ( fileIndex[i].indexFlag & INDEX_EXIST) && !(fileIndex[i].indexFlag & INDEX_DELETE)){
 											printf("{i:%zd}[%zd]%s",i,fileIndex[i].index,fileIndex[i].filename);
 											printf("\n");
 									}
 							}
 							exit(0);
 						case 'D' : 
-							hexToMD5(md5out , optarg);
-							index = getIndex( md5out , indexTable );
-							if(index == -1){// obj not exist
+							f_index = getIndexbyName( optarg , fileIndex , true);
+							index = fileIndex[f_index].index;
+							if(f_index == -1){// obj not exist
 									fprintf(stderr,"object not exist(n)\n");
 									exit(404);
 							}
@@ -307,10 +307,15 @@ int main(int argc , char *argv[] , char *envp[])
 									exit(404);
 							}
 							else{//do delete
-									indexTable[index].indexFlag |= INDEX_DELETE;
+									fileIndex[f_index].indexFlag |= INDEX_DELETE;
+									indexTable[index].ref--;
+									if(indexTable[index].ref == 0){
+											indexTable[index].indexFlag |= INDEX_DELETE;
+									}
+									saveIndex(indexTable);
+									saveFileIndex(fileIndex);
+									fprintf(stdout,"[%s] deleted!\n",optarg);
 							}
-							fprintf(stderr,"[%zd]\n",index);
-							saveIndex(indexTable);
 							exit(0);
 				}
 		}
@@ -605,7 +610,7 @@ int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , 
 }
 off_t getItem( Index *indexTable , FileIndex *fileIndex , char *filename , unsigned char *md5out , unsigned char* buffer , int byName){
 		//TODO maybe use filename to get md5out
-		off_t index=-1,bytes = 0 , offset=0;
+		off_t index=-1,bytes = 0 ;
 		if(byName == 1){
 				index = getIndexbyName(filename , fileIndex , false);//TODO should get ft.index , not findex
 		}else{
@@ -626,13 +631,14 @@ off_t putItem(Index * indexTable , FileIndex *fileIndex,char *filename  ,unsigne
 		md5(buffer , md5out);
 		index = getIndex(md5out , indexTable);
 		f_index = getIndexbyName(filename , fileIndex , true); //TODO should get findex ,not fT.index
-		if(fileIndex[f_index].indexFlag & INDEX_EXIST){
+		if(fileIndex[f_index].indexFlag & INDEX_EXIST && !(fileIndex[f_index].indexFlag & INDEX_DELETE)){
 				return -1;
 		}
 		if(index != -1){//it found in table
 				//TODO save fileIndex:save filename and point to indexTable;
 				memcpy(buffer,md5out,MD5_DIGEST_LENGTH);
 				indexTable[index].indexFlag = indexTable[index].indexFlag & 0xfe; 
+				indexTable[index].ref++;
 				saveIndex(indexTable);
 
 				memcpy(fileIndex[f_index].filename,filename , strlen(filename) );
@@ -676,6 +682,7 @@ off_t updateIndex(Index *indexTable , FileIndex *fileIndex ,char *filename, unsi
 		indexTable[locate].collision = 0 ;
 		indexTable[locate].indexFlag = 0 ;
 		indexTable[locate].indexFlag |= INDEX_EXIST ;
+		indexTable[locate].ref = 1;
 		saveIndex(indexTable);
 		return locate;
 
@@ -684,7 +691,7 @@ off_t findLocate(off_t hv , Index *indexTable){
 		off_t i;
 		for(i=0 ; i<DB.BUCKETNUM ; i++,hv++){
 				if(i == DB.BUCKETNUM) hv %= DB.BUCKETNUM;
-				if(indexTable[hv].indexFlag & INDEX_EXIST){
+				if(indexTable[hv].indexFlag & INDEX_EXIST && !(indexTable[hv].indexFlag & INDEX_DELETE)){
 						indexTable[hv].indexFlag = indexTable[hv].indexFlag | INDEX_COLLISION;
 						//do nothing
 				}
