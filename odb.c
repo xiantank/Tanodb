@@ -9,6 +9,7 @@
 #include<sys/types.h>
 #include<errno.h>
 #include<getopt.h>
+#define DEBUG 0
 const int INDEX_OFFSET_LENGTH = 5;
 /* 
  * structure declare
@@ -238,7 +239,9 @@ int main(int argc , char *argv[] , char *envp[])
 									fprintf(stderr , "obj not exist\n");
 									exit(1);
 							}
-							printf("[%zd]",index);
+#if DEBUG
+							fprintf(stderr,"[%zd]",index);
+#endif
 							write(STDOUT_FILENO , buffer , indexTable[index].size );
 							exit(0);
 						case 'I' : 
@@ -280,6 +283,7 @@ int main(int argc , char *argv[] , char *envp[])
 							}
 							exit(0);
 						case 'L' :
+#if DEBUG
 							for(i=0;i<DB.BUCKETNUM;i++){
 									if( ( indexTable[i].indexFlag & INDEX_EXIST)  && !(indexTable[i].indexFlag & INDEX_DELETE)  ){
 											for(n=0 ; n < MD5_DIGEST_LENGTH ; n++){
@@ -288,12 +292,19 @@ int main(int argc , char *argv[] , char *envp[])
 											printf("\n");
 									}
 							}
-							for(i=0;i<DB.BUCKETNUM;i++){
+							printf("\nreal:\n\n");
+#endif
+							printf("[");
+							for(i=0,n=0;i<DB.BUCKETNUM;i++){//n is cnt for list
 									if( ( fileIndex[i].indexFlag & INDEX_EXIST) && !(fileIndex[i].indexFlag & INDEX_DELETE)){
-											printf("{i:%zd}[%zd]%s",i,fileIndex[i].index,fileIndex[i].filename);
-											printf("\n");
+											if(n){
+													printf(",");
+											}
+											printf("{\"size:\":%zd,\"filename\":\"%s\"}",(off_t)indexTable[fileIndex[i].index].size,fileIndex[i].filename);
+											n++;
 									}
 							}
+							printf("]");
 							exit(0);
 						case 'D' : 
 							f_index = getIndexbyName( optarg , fileIndex , true);
