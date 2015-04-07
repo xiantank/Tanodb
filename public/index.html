@@ -9,12 +9,15 @@ Data Engineering project 1 - odb
 <!--link rel="stylesheet" href="//www.cs.ccu.edu.tw/~cht99u/src/bootstrap-3.3.4-dist/css/bootstrap.min.css"-->
 <link rel="stylesheet" href="./style.css">
 <script>
+var dragSrcEl = null;
 function generalList( objs ){
 		console.log(objs);
 		for(var i in objs){
 				var fileList = document.getElementById("fileList");
 				var list = document.createElement('div');
+				list.setAttribute("id",objs[i].filename);
 				list.setAttribute("class","item-list");
+				list.setAttribute("draggable","true");
 				var filename = document.createElement("span");
 				//href.setAttribute("href",results[i].url);
 				filename.setAttribute("class","flow-left");
@@ -28,26 +31,82 @@ function generalList( objs ){
 				//list.appendChild(document.createElement("br"));
 				fileList.appendChild(list);
 		}
-		var $fileList = $( "#fileList" ) , $trash = $( "#trashcan");
-		$( "div", $fileList ).draggable({
-				cancel: "a.ui-icon", // clicking an icon won't initiate dragging
-				revert: "invalid", // when not dropped, the item will revert back to its initial position
-				containment: "document",
-				helper: "clone",
-				cursor: "move"
-				});
-		$trash.droppable({
-				      //accept: "#fileList > div",
-					  //activeClass: "ui-state-highlight",
-					  drop: function( event, ui ) {
-					  		  event.preventDefault();
-					  		  event.stopPropagation();
+		var lists = document.querySelectorAll('.item-list');
+		[].forEach.call(lists, function(list) {
+						list.addEventListener('dragstart', handleDragStart, false);
+						list.addEventListener('dragend', handleDragEnd, false);
+						list.addEventListener('dblclick', downloadFile, false);
+						//list.addEventListener('dragenter', handleDragEnter, false);
+						//list.addEventListener('dragover', handleDragOver, false);
+						//list.addEventListener('dragleave', handleDragLeave, false);
+						//list.addEventListener('drop', handleDrop , false);
+						});
+		var trash = document.querySelectorAll('#trashcan').item(0);
+		trash.setAttribute("draggable","true");
+		trash.addEventListener('drop', handleDrop , false);
+		trash.addEventListener('dragover', handleDragOver, false);
+		trash.addEventListener('dragenter', handleDragEnter, false);
+		trash.addEventListener('dragleave', handleDragLeave, false);
 
-					  		//console.log(ui.draggable);//( ui.draggable );
-					  		console.log(event.originalEvent);
-					  }
-					  });
+
 }
+function handleDragStart(e) {
+		  this.style.opacity = '0.4';  // this / e.target is the source node.
+		  console.log("start: "+this.firstChild.textContent);
+		  dragSrcEl = this;
+		  e.dataTransfer.effectAllowed = 'move';
+		  //e.dataTransfer.setData('text/html', this.firstChild.textContent);
+		  e.dataTransfer.setData('text/html', this.id);
+}
+function handleDragOver(e) {
+		if (e.preventDefault) {
+				e.preventDefault(); // Necessary. Allows us to drop.
+		}
+
+		e.dataTransfer.dropEffect = 'move';  // See the section on the DataTransfer object.
+		this.classList.add("over");
+
+		return false;
+}
+
+function handleDragEnter(e) {
+		e.dataTransfer.dropEffect = 'move';
+		console.log("enter: "+this.firstChild.textContent);
+}
+
+function handleDragLeave(e) {
+		console.log("leave: "+this.firstChild.textContent);
+		this.classList.remove("over");
+}
+function handleDragEnd(e) {
+		console.log("end: "+this.firstChild.textContent);
+		this.style.opacity = '1';
+}
+function handleDrop(e) {
+		if (e.stopPropagation) {
+				e.stopPropagation();
+				e.preventDefault();
+		}
+		var itemId = e.dataTransfer.getData('text/html');
+		e.dataTransfer.dropEffect = 'copy';
+
+		console.log("drop: "+ itemId);
+		var el = document.getElementById(itemId);
+		    
+		el.parentNode.removeChild(el);
+		this.classList.remove("over");
+		//TODO send delete request
+
+
+		return false;
+}
+function downloadFile(e) {
+		//TODO send download request;
+		var db = "db";
+		window.location.href="/odb/"+db+"/get/"+this.id;
+		console.log("dblclick");
+}
+
 </script>
 </head>
 <body>
@@ -89,12 +148,12 @@ $.ajax({
 
 	success: function(msg){
 			console.log("sucess:"+msg);
-			try{
+			//try{
 				generalList( JSON.parse(msg) );
-			}catch(e){
+			/*}catch(e){
 			console.log(e);
 			return;
-			}
+			}*/
 	},
 	error: function(msg){
 			console.log("error"+msg);
