@@ -60,50 +60,40 @@ app.use(express.static(__dirname + '/public'));
 
 		      res.sendFile("index.html",options);
 });*/
-app.post('/odb/:db/put',function(req,res){
+app.post('/odb/:db/put/:filename',function(req,res){
 		var wrong = function(errMessage){
 				var resStr = errMessage || '';
 				res.write(resStr);
 				res.end();
 		}
-		console.log("in odb/put");
-		var str2='';
-		url_parts = url.parse(req.url, true);
-		var query = url_parts.query;
 		var para = [];
-		if(req.files && req.files.obj && req.files.obj.truncated){
+		if(req.files && req.files.file && req.files.file.truncated){
 				res.write("over file size limit!");
 				res.end();
 		}
-		if(req.files && req.files.obj ){
-				str2 = JSON.stringify(url_parts) ;
-				if(req.body.action === 'put'){
-						para = ["-p" , req.params.db , "-F" , req.files.obj.path ];
+		if(req.files && req.files.file){
+				para = ["-p" , req.params.db , "-F" , req.files.file.path ];
 
-						var odb = spawn('./odb' , para);
-						var str = '';
-						var erstr='';
-						odb.stdout.pipe(process.stdout);
-						odb.stderr.pipe(process.stdout);
-						odb.stdout.on('data', function (data) {
-										str += data;
-										});
+				var odb = spawn('./odb' , para);
+				var str = '';
+				var erstr='';
+				odb.stdout.pipe(process.stdout);
+				odb.stderr.pipe(process.stdout);
+				odb.stdout.on('data', function (data) {
+						str += data;
+						});
 
-						odb.stderr.on('data', function (data) {
-										erstr += data;
-										});
-						odb.on('exit', function (code) {
-										res.write(str + '\nurl parameter :'  + str2 + "err:[" + erstr + "]");
-										res.end("File uploaded."+req.files.obj.path);
-										console.log('['+req.files.obj.path+']');
-										fs.unlink('./' + req.files.obj.path) // delete the partially written file
-										});
-						return;
-				}
-				else{
-						res.end("File upload FAIL.");
-						return;
-				}
+				odb.stderr.on('data', function (data) {
+								erstr += data;
+								});
+				odb.on('exit', function (code) {
+								res.write(str + '\n' + "err:[" + erstr + "]");
+								res.end("File uploaded."+req.files.file.path);
+								console.log('['+req.files.file.path+']');
+								fs.unlink('./' + req.files.file.path) // delete the partially written file
+								});
+				return;
+		
 		}
 		res.end("File upload FAIL.");
 });
@@ -311,6 +301,8 @@ app.get('/odb/:db/delete/:name',function(req,res){
 				//res.end("File upload FAIL.");
 });
 app.post('/odb/*',function(request, response){
+
+		var_print(request);return;
 		//testing//
 		console.log("testing area");
 				var body = '';
