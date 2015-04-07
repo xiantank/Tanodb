@@ -6,6 +6,11 @@
 		width:100%;
 		background-color:blue;
 }
+#trashcan.over{
+		height:3rem;
+		width:100%;
+		background-color:yellow;
+}
 .item-list{
 		display:inline-block;
 		float:left;
@@ -17,6 +22,7 @@
 		border-width:.1rem;
 		border-radius:.5rem;
 		box-shadow: 0 0.1rem 0.7rem 0;
+		cursor: move;
 
 }
 .flow-right{
