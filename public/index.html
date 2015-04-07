@@ -5,11 +5,13 @@
 Data Engineering project 1 - odb
 </title>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
-<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
-<!--link rel="stylesheet" href="//www.cs.ccu.edu.tw/~cht99u/src/bootstrap-3.3.4-dist/css/bootstrap.min.css"-->
+<!--script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
+<link rel="stylesheet" href="//www.cs.ccu.edu.tw/~cht99u/src/bootstrap-3.3.4-dist/css/bootstrap.min.css"-->
 <link rel="stylesheet" href="./style.css">
 <script>
 var dragSrcEl = null;
+var MAXFILESIZE = 300000;
+var db = "db";
 function generalList( objs ){
 		console.log(objs);
 		for(var i in objs){
@@ -19,16 +21,13 @@ function generalList( objs ){
 				list.setAttribute("class","item-list");
 				list.setAttribute("draggable","true");
 				var filename = document.createElement("span");
-				//href.setAttribute("href",results[i].url);
 				filename.setAttribute("class","flow-left");
 				filename.innerHTML=objs[i].filename;
 				var filesize = document.createElement("span");
 				filesize.setAttribute("class","flow-right");
 				filesize.innerHTML=objs[i].size;
-				//href.setAttribute("href",results[i].url);
 				list.appendChild(filename);
 				list.appendChild(filesize);
-				//list.appendChild(document.createElement("br"));
 				fileList.appendChild(list);
 		}
 		var lists = document.querySelectorAll('.item-list');
@@ -42,16 +41,20 @@ function generalList( objs ){
 						//list.addEventListener('drop', handleDrop , false);
 						});
 		var trash = document.querySelectorAll('#trashcan').item(0);
-		trash.setAttribute("draggable","true");
-		trash.addEventListener('drop', handleDrop , false);
+		trash.addEventListener('drop', deleteDrop , false);
 		trash.addEventListener('dragover', handleDragOver, false);
 		trash.addEventListener('dragenter', handleDragEnter, false);
 		trash.addEventListener('dragleave', handleDragLeave, false);
 
+		var fileUpload = document.querySelectorAll('#fileUpload').item(0);
+		fileUpload.addEventListener('drop', uploadDrop , false);
+		fileUpload.addEventListener('dragover', handleDragOver, false);
+		fileUpload.addEventListener('dragenter', handleDragEnter, false);
+		fileUpload.addEventListener('dragleave', handleDragLeave, false);
 
 }
 function handleDragStart(e) {
-		  this.style.opacity = '0.4';  // this / e.target is the source node.
+		  this.style.opacity = '0.3';
 		  console.log("start: "+this.firstChild.textContent);
 		  dragSrcEl = this;
 		  e.dataTransfer.effectAllowed = 'move';
@@ -60,18 +63,20 @@ function handleDragStart(e) {
 }
 function handleDragOver(e) {
 		if (e.preventDefault) {
-				e.preventDefault(); // Necessary. Allows us to drop.
+				e.preventDefault();
 		}
 
-		e.dataTransfer.dropEffect = 'move';  // See the section on the DataTransfer object.
-		this.classList.add("over");
+		e.dataTransfer.dropEffect = 'move';
+		console.log("over: "+this.id);
 
 		return false;
 }
 
 function handleDragEnter(e) {
 		e.dataTransfer.dropEffect = 'move';
-		console.log("enter: "+this.firstChild.textContent);
+
+		this.classList.add("over");
+		console.log("enter: "+this.id);
 }
 
 function handleDragLeave(e) {
@@ -82,7 +87,54 @@ function handleDragEnd(e) {
 		console.log("end: "+this.firstChild.textContent);
 		this.style.opacity = '1';
 }
-function handleDrop(e) {
+function uploadDrop(e) {
+		if (e.stopPropagation) {
+				e.stopPropagation();
+				e.preventDefault();
+		}
+		e.dataTransfer.dropEffect = 'copy';
+		    
+		this.classList.remove("over");
+		//TODO check isFile , filesize , filename
+		if(e.dataTransfer.types[0] !== 'Files'){
+				return;
+		}
+		for(var i=0,j=e.dataTransfer.files.length; i<j; i++) {
+				console.log("name: " + e.dataTransfer.files[i].name + " size: " + e.dataTransfer.files[i].size);
+				if(e.dataTransfer.files[i].size > MAXFILESIZE){
+						console.log("over file size limit");
+						return;
+				}
+				var formData = new FormData();
+				formData.append('file', e.dataTransfer.files[i]);
+				var xhr = new XMLHttpRequest();
+				xhr.open('POST', "/odb/"+db+"/put/"+e.dataTransfer.files[i].name);
+				xhr.onload = function () {
+						if (xhr.status === 200) {
+								console.log('all done: ' + xhr.status);
+						} else {
+								console.log('something error @ uploadDrop.xhr.onload');
+						}
+				};
+				xhr.onreadystatechange = function(){
+						if(xhr.readyState==4){
+								var tmp = xhr.responseText;
+								console.log(tmp);
+						}
+				};
+
+				xhr.send(formData);
+
+				return;
+
+
+		}
+
+
+
+		return false;
+}
+function deleteDrop(e) {
 		if (e.stopPropagation) {
 				e.stopPropagation();
 				e.preventDefault();
@@ -90,7 +142,7 @@ function handleDrop(e) {
 		var itemId = e.dataTransfer.getData('text/html');
 		e.dataTransfer.dropEffect = 'copy';
 
-		console.log("drop: "+ itemId);
+		console.log("will delete : "+ itemId);
 		var el = document.getElementById(itemId);
 		    
 		el.parentNode.removeChild(el);
@@ -101,8 +153,6 @@ function handleDrop(e) {
 		return false;
 }
 function downloadFile(e) {
-		//TODO send download request;
-		var db = "db";
 		window.location.href="/odb/"+db+"/get/"+this.id;
 		console.log("dblclick");
 }
@@ -112,26 +162,9 @@ function downloadFile(e) {
 <body>
 
 
-<form id        =  "uploadForm"
-enctype   =  "multipart/form-data"
-action    =  "/odb/db/put"
-method    =  "post"
->
-<input type="file" name="obj" id="uploadFile"/>
-<input type="hidden" name="db" value="db" />
-<input type="hidden" name="action" value="put" />
-<input type="submit" value="Upload Image" name="submit">
-</form>
 
-<form id="getFile" action="/odb/db/get" method="post" >
-<select name="action">
-	<option value="filename">filename</option>
-	<option value="md5">md5</option>
-</select>
-<input type="text" name="value" value="" placeholder="md5/filename"/>
-<input type="hidden" name="db" value="db" />
-<input type="submit" value="GET FILE" name="submit">
-</form>
+<div id="fileUpload" class="fileUpload">
+</div>
 <div id="trashcan" class="trashcan">
 </div>
 <div id="fileList" class="list-block">
@@ -142,10 +175,7 @@ method    =  "post"
 url="/odb/db/list";
 $.ajax({
 	url: url,
-	//data: $('#sentToBack').serialize(),
 	type:"POST",
-	//dataType:'text',
-
 	success: function(msg){
 			console.log("sucess:"+msg);
 			//try{
