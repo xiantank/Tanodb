@@ -1,6 +1,16 @@
 #fileList{
 		margin:5rem 0 5rem 0;
 }
+#fileUpload{
+		height:3rem;
+		width:100%;
+		background-color:orange;
+}
+#fileUpload.over{
+		height:3rem;
+		width:100%;
+		background-color:aqua;
+}
 #trashcan{
 		height:3rem;
 		width:100%;
