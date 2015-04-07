@@ -24,7 +24,7 @@ var server = http.createServer(app);
 app.set('jsonp callback name');
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(multer({ dest: './uploads/',
+app.use(multer({ dest: './',
 			rename: function (fieldname, filename) {
 				//return filename+Date.now();
 				return filename;
@@ -141,7 +141,7 @@ app.post('/odb/:db/list',function(req,res){
 		}
 		res.end("File list FAIL.");
 });
-app.post('/odb/:db/get',function(req,res){
+app.get('/odb/:db/get/:filename',function(req,res){
 		var wrong = function(errMessage){
 				var resStr = errMessage || '';
 				res.write(resStr);
@@ -153,7 +153,7 @@ app.post('/odb/:db/get',function(req,res){
 		var para = [];
 		var resSet = false;
 		//var_print(req);
-		if( req.body && (req.body.action === 'md5') ){
+/*		if( req.body && (req.body.action === 'md5') ){
 			if(req.body.value){
 				para = ["-p",req.params.db,"-M",req.body.value];
 				console.log(JSON.stringify(para));
@@ -185,9 +185,10 @@ app.post('/odb/:db/get',function(req,res){
 
 							});
 			return;
-		}else if( req.body && (req.body.action === 'filename') ){
-			if(req.body.value){
-				para = ["-p",req.params.db,"-G","uploads/"+req.body.value];
+		}else */
+		if( req.params  ){
+			if(req.params.filename){
+				para = ["-p",req.params.db,"-G",req.params.filename];
 				console.log(JSON.stringify(para));
 			}else{
 				wrong("error argument<br\\>\r\n");
@@ -207,10 +208,10 @@ app.post('/odb/:db/get',function(req,res){
 							});
 
 			odb.stderr.on('data', function (data) {
+					//TODO set header 404 or other
 							res.write(data);
 							});
 			odb.on('close', function (code) {
-					//console.log('md5get: '+req.body.md5);
 					console.log(str.length);
 							//res.write();
 							res.end();
@@ -224,6 +225,7 @@ app.post('/odb/:db/get',function(req,res){
 });
 
 app.get('/odb/:db/delete/:name',function(req,res){
+		//TODO delete
 		console.log(req.params.name);
 		res.write(JSON.stringify(req.params));
 		res.end();
