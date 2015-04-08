@@ -10,12 +10,14 @@ Data Engineering project 1 - odb
 <link rel="stylesheet" href="./style.css">
 <script>
 var dragSrcEl = null;
-var MAXFILESIZE = 300000;
+var MAXFILESIZE = 512 * 1024 * 1024;
 var db = "db";
 function generalList( objs ){
 		console.log(objs);
+		var fileList = document.getElementById("fileList");
+		fileList.innerHTML="";
+
 		for(var i in objs){
-				var fileList = document.getElementById("fileList");
 				var list = document.createElement('div');
 				list.setAttribute("id",objs[i].filename);
 				list.setAttribute("class","item-list");
@@ -120,15 +122,11 @@ function uploadDrop(e) {
 						if(xhr.readyState==4){
 								var tmp = xhr.responseText;
 								console.log(tmp);
+								showList();
 						}
 				};
-
 				xhr.send(formData);
-
 		}
-
-
-
 		return false;
 }
 function deleteDrop(e) {
@@ -145,48 +143,93 @@ function deleteDrop(e) {
 		el.parentNode.removeChild(el);
 		this.classList.remove("over");
 		//TODO send delete request
+		var xhr = new XMLHttpRequest();
+		xhr.open('GET', "/odb/"+db+"/delete/"+itemId);
+		xhr.onload = function () {
+				if (xhr.status === 200) {
+						console.log('all done: ' + xhr.status);
+				} else {
+						console.log('something error @ deleteDrop.xhr.onload');
+				}
+		};
+		xhr.onreadystatechange = function(){
+				if(xhr.readyState==4){
+						var tmp = xhr.responseText;
+						console.log(tmp);
+				}
+		};
+
+		xhr.send();
+
 
 
 		return false;
 }
+function showList(){
+		url="/odb/db/list";
+		$.ajax({
+				url: url,
+				type:"POST",
+				success: function(msg){
+				console.log("sucess:"+msg);
+				//try{
+				generalList( JSON.parse(msg) );
+				/*}catch(e){
+				  console.log(e);
+				  return;
+				  }*/
+				},
+				error: function(msg){
+					console.log("error"+msg);
+					}
+					});
+
+}
 function downloadFile(e) {
-		window.location.href="/odb/"+db+"/get/"+this.id;
+		download(this.id);
+}
+function download(filename){
+		window.location.href="/odb/"+db+"/get/"+filename;
 		console.log("dblclick");
 }
+function search(){
+		var search = document.getElementById('search').value;
+		if(search === "") {
+				console.log("can not be empty");
+				return false;
+		}
+		download(search);
+		return false;
+}
+window.onresize = function(event) {
+		//var body = document.getElementsByTagName("body");
+		body[0].style.width= screen.width+'px';
 
+};
 </script>
 </head>
 <body>
 
 
-
-<div id="fileUpload" class="fileUpload">
-</div>
-<div id="trashcan" class="trashcan">
+<div id="topbar" class="topbar">
+	<div id="fileUpload" class="fileUpload dropTarget flow-right">
+		<img class="fit-image" src="./img/add.png" />
+	</div>
+	<span id="searchbar" class="mid searchDiv">
+			<input type="input" id="search">
+			<button onclick="search()" >search</button>
+	</span>
+	<div id="trashcan" class="trashcan dropTarget flow-right">
+		<img class="fit-image" src="./img/trashcan.png" />
+	</div>
 </div>
 <div id="fileList" class="list-block">
 
 </div>
 <script>
-//$.ajax($("#listArea").);
-url="/odb/db/list";
-$.ajax({
-	url: url,
-	type:"POST",
-	success: function(msg){
-			console.log("sucess:"+msg);
-			//try{
-				generalList( JSON.parse(msg) );
-			/*}catch(e){
-			console.log(e);
-			return;
-			}*/
-	},
-	error: function(msg){
-			console.log("error"+msg);
-	}
-});
-
+showList();
+body = document.getElementsByTagName("body");
+body[0].style.width= screen.width+'px';
 </script>
 </body>
 </html>
