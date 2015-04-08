@@ -9,7 +9,7 @@
 #include<sys/types.h>
 #include<errno.h>
 #include<getopt.h>
-#define DEBUG 0
+#define DEBUG 1
 const int INDEX_OFFSET_LENGTH = 5;
 /* 
  * structure declare
@@ -99,7 +99,7 @@ void saveFileIndex(FileIndex *fileIndex);
 int putObject(void *start , off_t size , char *fileprefix , unsigned char *fid , off_t *offset );
 int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , off_t offset );
 int saveVariable(void *start, int size , int nnum , char *filename);
-unsigned char *md5(char *in , unsigned char * out);
+unsigned char *md5(char *in , unsigned char * out , off_t length);
 int readString(char **src , char * dst , int length);//src wiil move to new location
 off_t bytesToOffset(unsigned char *bytesNum,int size);
 void offsetTobytes(unsigned char *c_offset , off_t offset, int length);
@@ -114,6 +114,7 @@ unsigned char hexToChar(char c);
 */
 int main(int argc , char *argv[] , char *envp[])
 {
+		memset(buffer , 0 , BUFFERSIZE);
 
 		int c=0;
 		char dbini[100];
@@ -352,22 +353,7 @@ int main(int argc , char *argv[] , char *envp[])
 
 
 
-		bytes = receiveObj(STDIN_FILENO,buffer, 0);
-		n = putItem(indexTable , fileIndex , filename , buffer , bytes, false);
-		fprintf(stderr , "[%zd]",n);
-		md5(buffer,md5out);
-		memset(buffer , 0 ,sizeof(buffer));
-		bytes = getItem(indexTable , fileIndex , filename ,  md5out , buffer , true);
-		write(STDOUT_FILENO , buffer , bytes );
-		fprintf(stderr , "[%zd]",bytes);
-
-		return 0;
-		index = getIndex(md5out , indexTable);
-		if(index < 0 ){
-				putObject(buffer , bytes , DB.PATH , &DB.curFid , &DB.offset);
-				getObject(buffer , bytes , DB.PATH , DB.curFid , (off_t)0);
-				write(STDOUT_FILENO , buffer , bytes );
-		}
+		
 		return 0;
 }
 /* function implement*/
@@ -391,7 +377,7 @@ off_t getHV(unsigned char *md5){
 }
 off_t getIndexbyName(char *filename , FileIndex *fileIndex , int isFindex){
 		unsigned char md5out[MD5_DIGEST_LENGTH];
-		md5(filename , md5out);
+		md5(filename , md5out , strlen(filename));
 
 		off_t hv = getHV(md5out);
 		if(isFindex == true){
@@ -428,7 +414,7 @@ off_t findIndex(off_t hv , Index *indexTable){
 		}
 }
 size_t receiveObj(int fd,unsigned char * obj , off_t bufferSize){
-		off_t bytes,cnt=0;
+		off_t bytes=0,cnt=0;
 		unsigned char *ptr = obj;
 		unsigned char buf[512];
 		//bytes=read(STDIN_FILENO, buf, 512);
@@ -447,19 +433,26 @@ size_t receiveObj(int fd,unsigned char * obj , off_t bufferSize){
 		return (ptr-obj);
 
 }
-unsigned char *md5(char *in,unsigned char * out){
+unsigned char *md5(char *in,unsigned char * out,off_t length){
         MD5_CTX c;
         char buf[512];
-        ssize_t bytes;
+        ssize_t bytes=0;
+        off_t readlen=512;
         //unsigned char out[MD5_DIGEST_LENGTH];
+        memset(&c , 0 , sizeof(c));
 
         MD5_Init(&c);
-        bytes=readString(&in , buf, 512);
+        bytes=readString(&in , buf, readlen);
+        length -= bytes;
         //bytes=read(STDIN_FILENO, buf, 512);
-        while(bytes > 0)
+        while(bytes > 0 && readlen > 0)
         {
                 MD5_Update(&c, buf, bytes);
-				bytes=readString(&in , buf, 512);
+                if(length<readlen){
+                		readlen = length;
+				}
+				bytes=readString(&in , buf, readlen);
+				length -= bytes;
                 //bytes=read(STDIN_FILENO, buf, 512);
         }
 
@@ -517,7 +510,7 @@ off_t bytesToOffset(unsigned char *bytesNum,int size){
 int readString(char **src , char * dst , int length){
 		char *cur = *src;
 		char *head = *src;
-		while( ( (cur-head) < length ) && ( *cur != '\0') && ( *cur != EOF )  ){
+		while( ( (cur-head) < length )  && ( *cur != EOF )  ){
 				cur++;
 		}
 		memcpy(dst,*src,(cur-head));
@@ -639,7 +632,7 @@ off_t getItem( Index *indexTable , FileIndex *fileIndex , char *filename , unsig
 off_t putItem(Index * indexTable , FileIndex *fileIndex,char *filename  ,unsigned char *buffer , off_t size , int byName ){
 		unsigned char md5out[MD5_DIGEST_LENGTH];
 		off_t index = -1 , f_index = -1 , startOffset , bytes;
-		md5(buffer , md5out);
+		md5(buffer , md5out , size);
 		index = getIndex(md5out , indexTable);
 		f_index = getIndexbyName(filename , fileIndex , true); //TODO should get findex ,not fT.index
 		if(fileIndex[f_index].indexFlag & INDEX_EXIST && !(fileIndex[f_index].indexFlag & INDEX_DELETE)){
