@@ -44,7 +44,7 @@ app.use(multer({ dest: './',
 			limits:{
 					//fileSize: 191010
 					//fileSize: 10485760
-					fileSize: 3000000
+					fileSize: 536870912
 			}
 }));
 app.use(express.static(__dirname + '/public'));
@@ -213,25 +213,16 @@ app.get('/odb/:db/get/:filename',function(req,res){
 
 				//res.end("File upload FAIL.");
 });
-
-app.get('/odb/:db/delete/:name',function(req,res){
-		//TODO delete
-		console.log(req.params.name);
-		res.write(JSON.stringify(req.params));
-		res.end();
-		return;
+app.get('/odb/:db/delete/:filename',function(req,res){
 		var wrong = function(errMessage){
 				var resStr = errMessage || '';
 				res.write(resStr);
 				res.end();
 		}
-		var str2='';
-		url_parts = url.parse(req.url, true);
-		var query = url_parts.query;
 		var para = [];
 		var resSet = false;
 		//var_print(req);
-		if( req.body && (req.body.action === 'md5') ){
+/*		if( req.body && (req.body.action === 'md5') ){
 			if(req.body.value){
 				para = ["-p",req.params.db,"-M",req.body.value];
 				console.log(JSON.stringify(para));
@@ -263,9 +254,10 @@ app.get('/odb/:db/delete/:name',function(req,res){
 
 							});
 			return;
-		}else if( req.body && (req.body.action === 'filename') ){
-			if(req.body.value){
-				para = ["-p",req.params.db,"-G","uploads/"+req.body.value];
+		}else */
+		if( req.params  ){
+			if(req.params.filename){
+				para = ["-p",req.params.db,"--delete",req.params.filename];
 				console.log(JSON.stringify(para));
 			}else{
 				wrong("error argument<br\\>\r\n");
@@ -277,7 +269,6 @@ app.get('/odb/:db/delete/:name',function(req,res){
 			//res.set({'Content-Type: ':'application/octet-stream'});
 			odb.stdout.on('data', function (data) {
 							if(!resSet){
-									res.set({'Content-disposition':'attachment'});
 									resSet = true;
 							}
 							res.write(data);
@@ -285,10 +276,10 @@ app.get('/odb/:db/delete/:name',function(req,res){
 							});
 
 			odb.stderr.on('data', function (data) {
+					//TODO set header 404 or other
 							res.write(data);
 							});
 			odb.on('close', function (code) {
-					//console.log('md5get: '+req.body.md5);
 					console.log(str.length);
 							//res.write();
 							res.end();
@@ -300,6 +291,7 @@ app.get('/odb/:db/delete/:name',function(req,res){
 
 				//res.end("File upload FAIL.");
 });
+
 app.post('/odb/*',function(request, response){
 
 		var_print(request);return;
