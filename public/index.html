@@ -203,7 +203,8 @@ function search(){
 }
 window.onresize = function(event) {
 		//var body = document.getElementsByTagName("body");
-		body[0].style.width= screen.width+'px';
+		//body[0].style.width= screen.width+'px';
+		body[0].style.width= window.innerWidth+'px';
 
 };
 </script>
@@ -229,7 +230,7 @@ window.onresize = function(event) {
 <script>
 showList();
 body = document.getElementsByTagName("body");
-body[0].style.width= screen.width+'px';
+body[0].style.width= window.innerWidth+'px';
 </script>
 </body>
 </html>
