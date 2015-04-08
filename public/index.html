@@ -94,11 +94,12 @@ function uploadDrop(e) {
 				e.stopPropagation();
 				e.preventDefault();
 		}
-		e.dataTransfer.dropEffect = 'copy';
+		e.dataTransfer.dropEffect = 'move';
 		    
 		this.classList.remove("over");
 		//TODO check isFile , filesize , filename
-		if(e.dataTransfer.types[0] !== 'Files'){
+		if(e.dataTransfer.types.indexOf('Files') == -1){
+				console.log("not Files");
 				return;
 		}
 		for(var i=0,j=e.dataTransfer.files.length; i<j; i++) {
@@ -135,7 +136,7 @@ function deleteDrop(e) {
 				e.preventDefault();
 		}
 		var itemId = e.dataTransfer.getData('text/html');
-		e.dataTransfer.dropEffect = 'copy';
+		e.dataTransfer.dropEffect = 'move';
 
 		console.log("will delete : "+ itemId);
 		var el = document.getElementById(itemId);
