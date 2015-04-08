@@ -9,7 +9,7 @@
 #include<sys/types.h>
 #include<errno.h>
 #include<getopt.h>
-#define DEBUG 1
+#define DEBUG 0
 const int INDEX_OFFSET_LENGTH = 5;
 /* 
  * structure declare
@@ -79,7 +79,6 @@ typedef struct FileIndex FileIndex;
  */
 Config DB;
 #define BUFFERSIZE 3000000
-unsigned char buffer[BUFFERSIZE];
 /*
  * function declare
  */
@@ -114,11 +113,11 @@ unsigned char hexToChar(char c);
 */
 int main(int argc , char *argv[] , char *envp[])
 {
-		memset(buffer , 0 , BUFFERSIZE);
 
 		int c=0;
 		char dbini[100];
 		char filename[100]="";
+		unsigned char *buffer;//[BUFFERSIZE];
 		char* const short_options = "b:dD:f:F:G:iI:LM:n:o:p:Ps:u:";
 		off_t bytes=0,index=0,n,i , f_index;
 		unsigned char md5out[MD5_DIGEST_LENGTH];
@@ -193,6 +192,9 @@ int main(int argc , char *argv[] , char *envp[])
 									sprintf(dbini,"%sfn.inx",DB.PATH);
 									getVariable( (void *)fileIndex, sizeof(FileIndex) , DB.BUCKETNUM , dbini);
 									strcpy(DB.PATH,optarg);
+
+									buffer = (unsigned char *) malloc ( sizeof(unsigned char) * DB.OBJSIZE);
+									//memset(buffer , 0 , DB.OBJSIZE);
 							}
 							break;
 						case 'i' : 
@@ -254,9 +256,9 @@ int main(int argc , char *argv[] , char *envp[])
 									fprintf(stderr, "file open fail\n" );
 									exit(1);
 							}
-							bytes = receiveObj(fd,buffer , BUFFERSIZE);
+							bytes = receiveObj(fd,buffer , DB.OBJSIZE);
 							if(bytes == -1){
-									fprintf(stderr , "file size limit is %d" , BUFFERSIZE);
+									fprintf(stderr , "file size limit is %d" , DB.OBJSIZE);
 									exit(5);
 							}
 							index = putItem(indexTable , fileIndex , optarg , buffer , bytes , true);
@@ -269,9 +271,9 @@ int main(int argc , char *argv[] , char *envp[])
 							}
 							exit(0);
 						case 'P' : 
-							bytes = receiveObj(STDIN_FILENO,buffer , BUFFERSIZE);
+							bytes = receiveObj(STDIN_FILENO,buffer , DB.OBJSIZE);
 							if(bytes == -1){
-									fprintf(stderr , "file size limit is %d" , BUFFERSIZE);
+									fprintf(stderr , "file size limit is %d" , DB.OBJSIZE);
 									exit(5);
 							}
 							index = putItem(indexTable , fileIndex , filename , buffer , bytes , false);
@@ -363,7 +365,7 @@ int init(){//TODO read from file;
 		DB.MAXFILESIZE = 274877906944;
 		DB.BUCKETSIZE = 0;
 		DB.BUCKETNUM = 100000;
-		DB.OBJSIZE = 10000;
+		DB.OBJSIZE = 512 * 1024 * 1024;
 		DB.curFid = 0;
 		DB.offset = 0;
 
