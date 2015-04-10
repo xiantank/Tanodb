@@ -1,4 +1,3 @@
-var WebSocketServer = require('websocket').server;
 var http = require('http');
 
 var request = require('request');
