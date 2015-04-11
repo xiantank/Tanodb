@@ -186,21 +186,45 @@ function showList(){
 					});
 
 }
-function downloadFile(e) {
-		download(this.id);
-}
-function download(filename){
-		window.location.href="/odb/"+db+"/get/"+filename;
-		console.log("dblclick");
-}
+
 function search(){
 		var search = document.getElementById('search').value;
 		if(search === "") {
 				console.log("can not be empty");
 				return false;
 		}
-		download(search);
+
+		url="/odb/db/search";
+		var formData = {search:search};
+		/*var formData = new FormData();
+		formData.append('objsearch', search);
+		*/
+		$.ajax({
+				url: url,
+				type:"POST",
+				data:formData,
+				success: function(msg){
+				//console.log("sucess:"+msg);
+				//try{
+				generalList( JSON.parse(msg) );
+				/*}catch(e){
+				  console.log(e);
+				  return;
+				  }*/
+				},
+				error: function(msg){
+					console.log("error"+msg);
+					}
+					});
 		return false;
+
+}
+function downloadFile(e) {
+		download(this.id);
+}
+function download(filename){
+		window.location.href="/odb/"+db+"/get/"+filename;
+		console.log("dblclick");
 }
 window.onresize = function(event) {
 		//var body = document.getElementsByTagName("body");
