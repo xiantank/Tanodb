@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <openssl/md5.h>
 #include <unistd.h>
 #include<stdio.h>
@@ -302,7 +303,8 @@ int main(int argc , char *argv[] , char *envp[])
 							printf("[");
 							for(i=0,n=0;i<DB.BUCKETNUM;i++){//n is cnt for list
 									if( ( fileIndex[i].indexFlag & INDEX_EXIST) && !(fileIndex[i].indexFlag & INDEX_DELETE)){
-											if(strncmp(fileIndex[i].filename,optarg,strlen(optarg))){
+											if(!strcasestr(fileIndex[i].filename,optarg)){
+											//if(strncmp(fileIndex[i].filename,optarg,strlen(optarg))){
 													continue;
 											}
 											if(n){
