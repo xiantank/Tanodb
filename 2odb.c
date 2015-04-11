@@ -143,6 +143,7 @@ int main(int argc , char *argv[] , char *envp[])
 				{ "PUT" , 0 , NULL , 'P'},
 				{ "file-put" , 1 , NULL , 'F'},
 				{ "list" , 0 , NULL , 'L'},
+				{ "search" , 1 , NULL , 'S'},
 				{ "delete" , 1 , NULL , 'D'},
 				{ 0 , 0 , 0 , 0}
 		};
@@ -297,6 +298,23 @@ int main(int argc , char *argv[] , char *envp[])
 							}
 							printf("]");
 							exit(0);
+						case 'S' :
+							printf("[");
+							for(i=0,n=0;i<DB.BUCKETNUM;i++){//n is cnt for list
+									if( ( fileIndex[i].indexFlag & INDEX_EXIST) && !(fileIndex[i].indexFlag & INDEX_DELETE)){
+											if(strncmp(fileIndex[i].filename,optarg,strlen(optarg))){
+													continue;
+											}
+											if(n){
+													printf(",");
+											}
+											printf("{\"size\":%zd,\"filename\":\"%s\"}",(off_t)indexTable[fileIndex[i].index].size,fileIndex[i].filename);
+											n++;
+									}
+							}
+							printf("]");
+							exit(0);
+
 						case 'D' : 
 							f_index = getIndexbyName( optarg , fileIndex , true);
 							index = fileIndex[f_index].index;
@@ -350,7 +368,7 @@ int main(int argc , char *argv[] , char *envp[])
 int init(){//TODO read from file;
 		strcpy (DB.PATH ,"./");
 		DB.FILENUM = 5;
-		DB.MAXFILESIZE = 274877906944;
+		DB.MAXFILESIZE = 1 * 1024 * 1024 * 1024;
 		DB.BUCKETSIZE = 0;
 		DB.BUCKETNUM = 100000;
 		DB.OBJSIZE = 512 * 1024 * 1024;
