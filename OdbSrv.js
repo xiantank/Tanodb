@@ -84,10 +84,11 @@ app.post('/odb/:db/put/:filename',function(req,res){
 
 				odb.stderr.on('data', function (data) {
 								erstr += data;
+								res.write(data);
 								});
 				odb.on('exit', function (code) {
-								res.write(str + '\n' + "err:[" + erstr + "]");
-								res.end("File uploaded."+req.files.file.path);
+								res.write(str);
+								res.end("File uploaded.");
 								console.log('['+req.files.file.path+']');
 								fs.unlink('./' + req.files.file.path) // delete the partially written file
 								});
