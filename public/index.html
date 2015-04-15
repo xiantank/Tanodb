@@ -17,7 +17,6 @@ function generalList( objs ){
 		var fileList = document.getElementById("fileList");
 		if(objs.length==0){
 				message("no result");
-				return false;
 		}
 		fileList.innerHTML="";
 
@@ -112,10 +111,20 @@ function uploadDrop(e) {
 						message("over file size limit");
 						return;
 				}
-				var formData = new FormData();
-				formData.append('file', e.dataTransfer.files[i]);
+		}
+		try{
+		upload(e.dataTransfer.files,0);
+		}catch(e){console.log("[error]"+e);}
+		return false;
+}
+function upload(files,i){
+		if(i>= files.length ){
+				return;
+		}
+		var formData = new FormData();
+				formData.append('file', files[i]);
 				var xhr = new XMLHttpRequest();
-				xhr.open('POST', "/odb/"+db+"/put/"+e.dataTransfer.files[i].name);
+				xhr.open('POST', "/odb/"+db+"/put/"+files[i].name);
 				xhr.onload = function () {
 						if (xhr.status === 200) {
 								console.log('all done: ' + xhr.status);
@@ -125,14 +134,15 @@ function uploadDrop(e) {
 				};
 				xhr.onreadystatechange = function(){
 						if(xhr.readyState==4){
+								i++;
+								upload(files,i);
 								var tmp = xhr.responseText;
 								message(tmp);
 								showList();
 						}
 				};
 				xhr.send(formData);
-		}
-		return false;
+
 }
 function deleteDrop(e) {
 		if (e.stopPropagation) {
@@ -243,6 +253,7 @@ function message(msg){
 						var message = document.querySelectorAll('#message').item(0);
 						message.classList.add("hid");
 		}, 3000);
+		console.log(msg);
 
 
 }
