@@ -15,6 +15,10 @@ var db = "db";
 function generalList( objs ){
 		console.log(objs);
 		var fileList = document.getElementById("fileList");
+		if(objs.length==0){
+				message("no result");
+				return false;
+		}
 		fileList.innerHTML="";
 
 		for(var i in objs){
@@ -97,15 +101,15 @@ function uploadDrop(e) {
 		e.dataTransfer.dropEffect = 'move';
 		    
 		this.classList.remove("over");
-		//TODO check isFile , filesize , filename
+		//TODO check  filesize , filename
 		if(e.dataTransfer.types.indexOf('Files') == -1){
-				console.log("not Files");
+				message("not Files");
 				return;
 		}
 		for(var i=0,j=e.dataTransfer.files.length; i<j; i++) {
 				console.log("name: " + e.dataTransfer.files[i].name + " size: " + e.dataTransfer.files[i].size);
 				if(e.dataTransfer.files[i].size > MAXFILESIZE){
-						console.log("over file size limit");
+						message("over file size limit");
 						return;
 				}
 				var formData = new FormData();
@@ -122,7 +126,7 @@ function uploadDrop(e) {
 				xhr.onreadystatechange = function(){
 						if(xhr.readyState==4){
 								var tmp = xhr.responseText;
-								console.log(tmp);
+								message(tmp);
 								showList();
 						}
 				};
@@ -140,6 +144,10 @@ function deleteDrop(e) {
 
 		console.log("will delete : "+ itemId);
 		var el = document.getElementById(itemId);
+		if(!el){
+				message("not element!");
+				return;
+		}
 		    
 		el.parentNode.removeChild(el);
 		this.classList.remove("over");
@@ -156,7 +164,7 @@ function deleteDrop(e) {
 		xhr.onreadystatechange = function(){
 				if(xhr.readyState==4){
 						var tmp = xhr.responseText;
-						console.log(tmp);
+						message(tmp);
 				}
 		};
 
@@ -181,7 +189,7 @@ function showList(){
 				  }*/
 				},
 				error: function(msg){
-					console.log("error"+msg);
+					console.log("[error]"+msg);
 					}
 					});
 
@@ -190,7 +198,7 @@ function showList(){
 function search(){
 		var search = document.getElementById('search').value;
 		if(search === "") {
-				console.log("can not be empty");
+				message("can not be empty");
 				return false;
 		}
 
@@ -226,6 +234,18 @@ function download(filename){
 		window.location.href="/odb/"+db+"/get/"+filename;
 		console.log("dblclick");
 }
+function message(msg){
+		var message = document.querySelectorAll('#message').item(0);
+
+		message.innerHTML = msg;
+		message.classList.remove("hid");
+		setTimeout(function(){
+						var message = document.querySelectorAll('#message').item(0);
+						message.classList.add("hid");
+		}, 3000);
+
+
+}
 window.onresize = function(event) {
 		//var body = document.getElementsByTagName("body");
 		//body[0].style.width= screen.width+'px';
@@ -250,12 +270,18 @@ window.onresize = function(event) {
 	</div>
 </div>
 <div id="fileList" class="list-block">
-
+</div>
+<div id="message" class="message hid">
 </div>
 <script>
 showList();
 body = document.getElementsByTagName("body");
 body[0].style.width= window.innerWidth+'px';
+		var searchText = document.querySelectorAll('#search').item(0);
+		searchText.addEventListener('keyup', yo , false);
+		function yo(e){
+				console.log("yo");
+		}
 </script>
 </body>
 </html>
