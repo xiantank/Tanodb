@@ -270,10 +270,11 @@ int main(int argc , char *argv[] , char *envp[])
 									fprintf(stderr , "filename exist\n");
 									exit(2);
 							}
-							for(n=0 ; n < MD5_DIGEST_LENGTH ; n++){
+							/*for(n=0 ; n < MD5_DIGEST_LENGTH ; n++){
 									printf("%02x",indexTable[index].MD5[n]);
 							}
-							printf("\n");
+							printf("\n");*/
+							printf("[%s]",optarg);
 							exit(0);
 						case 'L' :
 #if DEBUG
