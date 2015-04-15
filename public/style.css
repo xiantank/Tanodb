@@ -97,3 +97,23 @@ html, body{
 	border-radius: 0.4 rem;
 	box-shadow: inset 0 0.1 rem 0 rgba(255,255,255,.2), 0 0.1 rem 0.2 rem rgba(0,0,0,.05);
 }
+.message{
+		position: fixed;
+		width:30%;
+		height:3rem;
+		left: 50%;
+		top: 5rem;
+		margin: 0 0 0 -15%;
+		background: rgba(0, 255, 192, 0.36);
+		border-radius: 1rem;
+		text-align: center;
+		font-size:1.5rem;
+		line-height:3rem;
+		transition : .1s ease-in;
+		overflow: hidden;
+
+}
+.hid{
+		transform:scale(0);
+}
+
