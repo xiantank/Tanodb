@@ -18,7 +18,8 @@ function generalList( objs ){
 		if(objs.length==0){
 				message("no result");
 		}
-		fileList.innerHTML="";
+		else{
+				fileList.innerHTML="";
 
 		for(var i in objs){
 				var list = document.createElement('div');
@@ -45,6 +46,7 @@ function generalList( objs ){
 						//list.addEventListener('dragleave', handleDragLeave, false);
 						//list.addEventListener('drop', handleDrop , false);
 						});
+		}
 		var trash = document.querySelectorAll('#trashcan').item(0);
 		trash.addEventListener('drop', deleteDrop , false);
 		trash.addEventListener('dragover', handleDragOver, false);
