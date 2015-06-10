@@ -10,6 +10,7 @@
 #include<sys/types.h>
 #include<errno.h>
 #include<getopt.h>
+#include<time.h>
 #define DEBUG 0
 const int INDEX_OFFSET_LENGTH = 5;
 /* 
@@ -111,7 +112,7 @@ size_t receiveObj(int fd,unsigned char * obj , off_t bufferSize);
 off_t getIndex(unsigned char *md5 , Index * indexTable);
 off_t getIndexbyName(char *filename , FileIndex *fileIndex , int isFindex);
 off_t getItem( Index *indexTable , FileIndex *fileIndex,char *objname , unsigned char *md5out ,  int byName);
-off_t putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, off_t size, int byName,RecordIndex *recIndex, off_t rid , off_t rec_parrent , char *describe);
+off_t putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, off_t size, int byName,RecordIndex *recIndex, off_t rid , off_t rec_parrent , char *describe , char *name);
 void saveDB();
 void saveIndex(Index *indexTable);//TODO only save modify index
 void saveFileIndex(FileIndex *fileIndex);
@@ -120,7 +121,7 @@ void saveRecordIndex(RecordIndex * recIndex);
  * record function
  */
 void parseCmdToRec(char *optarg,off_t *rid,off_t *parrent,char *name,char *describe);
-void writeRecord(RecordIndex *recIndex ,off_t recordId , char *filename , off_t parrent ,unsigned char *MD5 , char *describe);
+void writeRecord(RecordIndex *recIndex ,off_t recordId , char *filename , off_t parrent ,unsigned char *MD5 , char *describe , off_t rec_size);
 //append
 /*
 type:		get by filename						in the func.
@@ -148,6 +149,7 @@ off_t findIndex(off_t hv , Index *indexTable);
 off_t findLocate(off_t hv , Index *indexTable);
 off_t updateIndex(Index *indexTable , FileIndex *fileIndex ,char *filename, unsigned char *md5 , unsigned char fid , off_t offset ,off_t size );
 void hexToMD5(unsigned char* md5out , char *in);
+char *md5ToHex(unsigned char *MD5,char *hexBuf);
 unsigned char hexToChar(char c);
 /*
  *main function
@@ -317,7 +319,7 @@ int main(int argc , char *argv[] , char *envp[])
 									fprintf(stderr , "file size limit is %d" , DB.OBJSIZE);
 									exit(5);
 							}*/
-							index = putItem(indexTable , fileIndex , optarg , fd , bytes , true , recIndex , rid , parrent , describe);
+							index = putItem(indexTable , fileIndex , optarg , fd , bytes , true , recIndex , rid , parrent , describe , name);
 //off_t putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, off_t size, int byName,RecordIndex recIndex, off_t rid , char *rec_parrent , char *describe);
 							if(index == -1){
 									fprintf(stderr , "filename exist\n");
@@ -567,6 +569,14 @@ unsigned char *md5(int fdin,unsigned char * out,off_t length){
         return out;
 
 }
+char *md5ToHex(unsigned char *MD5,char *hexBuf){
+		char *ptr = hexBuf;
+		int n;
+		for(n=0 ; n < MD5_DIGEST_LENGTH ; n++,ptr+=2){
+				        sprintf(ptr,"%02x",MD5[n]);
+		}
+		return hexBuf;
+}
 void hexToMD5(unsigned char* md5out , char *in){
 		int i=0,j;
 		for(i=0,j=0;j<16;i+=2,j++){
@@ -726,7 +736,6 @@ int putObject(int fdin , off_t size , char *fileprefix , unsigned char *fid , of
 				//TODO some error handle
 		}
 		*offset += verify;
-		saveDB();
 		return verify;
 }
 int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , off_t offset ){
@@ -792,17 +801,48 @@ off_t getItem( Index *indexTable , FileIndex *fileIndex , char *objname , unsign
 		return index;
 
 }
-void writeRecord(RecordIndex *recIndex ,off_t recordId , char *filename , off_t parrent ,unsigned char *MD5 , char *describe){
+void writeRecord(RecordIndex *recIndex ,off_t recordId , char *filename , off_t parrent ,unsigned char *MD5 , char *describe , off_t rec_size){
 		fprintf(stderr , "rid:%zd\nfilename: %s\nparrent:%zd\ndescribe: %s\n",
 						recordId,filename,parrent,describe);
 		int fd=-1;
 		char recFileName[100];
-		char *record;
-		record = (char *) malloc ( sizeof(char) * DB.RECBLOCK);
-		sprintf(recFileName,"%s001.rec",DB.path);
+		char *record , *ptr;
+		int size = sizeof(char) * DB.RECBLOCK;
+		int len;
+		char fileType[50]="" , md5Hex[33];
+		time_t now = time(NULL);
+		record = (char *) malloc ( size);
+		memset(record , 0 , size);
+
+
+		/*find filetype*/
+		
+		for(len = strlen(filename)-1;len>=0;len--){
+				if(filename[len] == '.'){
+						ptr = &filename[len];
+						strcpy(fileType , ++ptr);
+						break;
+				}
+		}
+		if(len <= 0){ //first character is '.'  that is not data type , is hidden!
+				strcpy(fileType , "none");				
+		}
+		/*end find filetype*/
+
+		sprintf(recFileName,"%s001.rec",DB.PATH);
 		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
+		lseek(fd,DB.rec_offset,SEEK_SET);
+		sprintf(record , 
+		"@rid:%zd\n@type:%s\n@name:%s\n@parrent:%zd\n@ctime:%ld\n@size:%zd\n@mtime:%ld\n@MD5:%s\n@desc:%s\n@_end:@\n",
+		recordId,fileType , filename , parrent , now , rec_size , now , md5ToHex(MD5,md5Hex), describe);
+		//TODO verify ()
+		//TODO verify ()
+		write(fd , record ,size );
+		//TODO rec_offset +++
+		close(fd);
+		
 }
-off_t putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, off_t size, int byName,RecordIndex *recIndex, off_t rid , off_t rec_parrent , char *describe){
+off_t putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, off_t size, int byName,RecordIndex *recIndex, off_t rid , off_t rec_parrent , char *describe , char *name){
 		unsigned char md5out[MD5_DIGEST_LENGTH];
 		off_t index = -1 , f_index = -1 , startOffset , bytes;
 		md5(fd , md5out , size);
@@ -812,7 +852,7 @@ off_t putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, of
 				return -1;
 		}
 		/*put to RDB*/
-		writeRecord(recIndex , rid , filename , rec_parrent , md5out , describe);
+		writeRecord(recIndex , rid , name , rec_parrent , md5out , describe , size );
 
 
 
@@ -840,6 +880,7 @@ off_t putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, of
 		if(bytes != indexTable[index].size){//TODO error handle
 		}
 		////memcpy(buffer,md5out,MD5_DIGEST_LENGTH);
+		saveDB();
 		return index;
 }
 off_t updateIndex(Index *indexTable , FileIndex *fileIndex ,char *filename, unsigned char *md5 , unsigned char fid , off_t offset , off_t size ){
