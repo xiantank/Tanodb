@@ -36,6 +36,7 @@ struct RecordIndex{
 		//unsigned char MD5[MD5_DIGEST_LENGTH];
 		off_t rec_offset;
 		off_t rec_size;
+		unsigned char indexFlag;
 };
 struct Record{
 		off_t recordId;
@@ -49,6 +50,7 @@ struct Record{
 		char describe[100];
 };
 typedef enum{
+		INDEX_NULL = 0,
 		INDEX_DELETE = 1,
 		INDEX_COLLISION = 2,
 		INDEX_EXIST = (1<<7)
@@ -122,9 +124,14 @@ void saveRecordIndex(RecordIndex * recIndex);
  * record function
  */
 void parseCmdToRec(char *optarg,off_t *rid,off_t *parrent,char *name,char *describe);
-void writeRecord(RecordIndex *recIndex ,off_t recordId , char *filename , off_t parrent ,unsigned char *MD5 , char *describe , off_t rec_size);
-off_t updateRecIndex(off_t rid,off_t rec_offset , off_t rec_size);
+void putRecord(off_t recordId , char *filename , off_t parrent ,unsigned char *MD5 , char *describe , off_t rec_size);
+void getRecord(off_t rid , char *buf);
+void updateRecord(RecordIndex recIndex , off_t recordId  );
+void deleteRecord(off_t rid);
+
 RecordIndex getRecIndex(off_t rid);
+off_t updateRecIndex(off_t rid , off_t rec_offset , off_t rec_size , unsigned char indexFlag );// TODO maybe use list all param ,not struct
+off_t deleteRecIndex(off_t rid);
 //append
 /*
 type:		get by filename						in the func.
@@ -134,8 +141,6 @@ tags:		default no tag, add when update
 recordId:	get from node.js
 */
 
-void readRecord(char *);
-void updateRecord(RecordIndex recIndex , off_t recordId  );
 /*
  * tool function
 */
@@ -804,7 +809,7 @@ off_t getItem( Index *indexTable , FileIndex *fileIndex , char *objname , unsign
 		return index;
 
 }
-void writeRecord(RecordIndex *recIndex ,off_t recordId , char *filename , off_t parrent ,unsigned char *MD5 , char *describe , off_t rec_size){
+void putRecord(off_t recordId , char *filename , off_t parrent ,unsigned char *MD5 , char *describe , off_t rec_size){
 		fprintf(stderr , "rid:%zd\nfilename: %s\nparrent:%zd\ndescribe: %s\n",
 						recordId,filename,parrent,describe);
 		int fd=-1;
@@ -836,31 +841,57 @@ void writeRecord(RecordIndex *recIndex ,off_t recordId , char *filename , off_t 
 		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
 		lseek(fd,DB.rec_offset,SEEK_SET);
 		sprintf(record , 
-		"@rid:%zd\n@type:%s\n@name:%s\n@parrent:%zd\n@ctime:%ld\n@size:%zd\n@mtime:%ld\n@MD5:%s\n@desc:%s\n@_end:@\n",
-		recordId,fileType , filename , parrent , now , rec_size , now , md5ToHex(MD5,md5Hex), describe);
+		"@rid:%zd\n@_deleteFlag:%s@type:%s\n@name:%s\n@parrent:%zd\n@ctime:%ld\n@size:%zd\n@mtime:%ld\n@MD5:%s\n@desc:%s\n@_end:@\n",
+		recordId , "0",fileType , filename , parrent , now , rec_size , now , md5ToHex(MD5,md5Hex), describe);
 		//TODO verify ()
 		write(fd , record ,size );
-		updateRecIndex(recordId , DB.rec_offset , rec_size);
+
+
+		updateRecIndex(recordId , DB.rec_offset , rec_size , INDEX_EXIST);
 		DB.rec_offset+= size;
 		close(fd);
 		
 }
-off_t updateRecIndex(off_t rid,off_t rec_offset , off_t rec_size){
-		RecordIndex recIndex;
+void getRecord(off_t rid , char *record){
+		RecordIndex recIndex=getRecIndex(rid);
+		char recFileName[100];
+		int fd;
+		sprintf(recFileName,"%s001.rec",DB.PATH);
+		fd = open( recFileName ,O_RDONLY );
+		lseek(fd,recIndex.rec_offset,SEEK_SET);
+		read(fd , record , recIndex.rec_size);
+		return;
+
+
+}
+int getRecColumn(char *record , char *key , char *valueBuf){
+		/*
+		* return value : if 0 => fail ; if x => x = count of location from head
+		*/
+}
+void updateRecord(RecordIndex recIndex , off_t recordId  ){
+}
+void deleteRecord(off_t rid){
+		deleteRecIndex(rid);
+		//TODO deleteReal Record  //maybe @_deleteFlag set 1
+
+}
+
+off_t updateRecIndex(off_t rid , off_t rec_offset , off_t rec_size , unsigned char indexFlag ){
 		char recIndexFile[50];
 		off_t recIdxOffset;
+		RecordIndex recIndex = { rid , rec_offset , rec_size , indexFlag};
 		sprintf(recIndexFile,"%srec.inx",DB.PATH);
 		int fd;
-		recIdxOffset = rid * sizeof(RecordIndex);
+		recIdxOffset = recIndex.rid * sizeof(RecordIndex);
 
 		fd = open( recIndexFile ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
 		lseek(fd , recIdxOffset ,SEEK_SET);
-		recIndex.rid=rid;
-		recIndex.rec_offset = rec_offset;
-		recIndex.rec_size = rec_size;
 		write(fd , &recIndex ,sizeof(RecordIndex) );
 		close (fd);
-		getRecIndex(rid);
+#if DEBUG
+		getRecIndex(recIndex.rid);
+#endif
 
 		return 0;//TODO
 }
@@ -879,10 +910,19 @@ RecordIndex getRecIndex(off_t rid){
 		}
 		lseek(fd , recIdxOffset ,SEEK_SET);
 		read(fd , &recIndex , sizeof( RecordIndex ) );
-		fprintf(stderr , "rid: %zd;offset: %zd ;size : %zd" ,recIndex.rid , recIndex.rec_offset,recIndex.rec_size );
+		
+#if DEBUG
+		fprintf(stderr , "rid: %zd;offset: %zd ;size : %zd ;flag:%d" ,recIndex.rid , recIndex.rec_offset,recIndex.rec_size,recIndex.indexFlag);
+#endif
 		close(fd);
 
 		return recIndex;
+}
+off_t deleteRecIndex(off_t rid){
+		updateRecIndex( rid , -1 , 0 , INDEX_DELETE);
+
+		return 0;//TODO
+
 }
 off_t putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, off_t size, int byName,RecordIndex *recIndex, off_t rid , off_t rec_parrent , char *describe , char *name){
 		unsigned char md5out[MD5_DIGEST_LENGTH];
@@ -894,7 +934,7 @@ off_t putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, of
 				return -1;
 		}
 		/*put to RDB*/
-		writeRecord(recIndex , rid , name , rec_parrent , md5out , describe , size );
+		putRecord( rid , name , rec_parrent , md5out , describe , size );
 
 
 
