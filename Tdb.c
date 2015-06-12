@@ -836,9 +836,9 @@ void writeRecord(RecordIndex *recIndex ,off_t recordId , char *filename , off_t 
 		"@rid:%zd\n@type:%s\n@name:%s\n@parrent:%zd\n@ctime:%ld\n@size:%zd\n@mtime:%ld\n@MD5:%s\n@desc:%s\n@_end:@\n",
 		recordId,fileType , filename , parrent , now , rec_size , now , md5ToHex(MD5,md5Hex), describe);
 		//TODO verify ()
-		//TODO verify ()
 		write(fd , record ,size );
 		//TODO rec_offset +++
+		//TODO update rec_IndexTable;
 		close(fd);
 		
 }
