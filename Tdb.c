@@ -33,8 +33,9 @@ struct FileIndex{
 };
 struct RecordIndex{
 		off_t rid;
-		unsigned char MD5[MD5_DIGEST_LENGTH];
-		off_t offset;
+		//unsigned char MD5[MD5_DIGEST_LENGTH];
+		off_t rec_offset;
+		off_t rec_size;
 };
 struct Record{
 		off_t recordId;
@@ -122,6 +123,8 @@ void saveRecordIndex(RecordIndex * recIndex);
  */
 void parseCmdToRec(char *optarg,off_t *rid,off_t *parrent,char *name,char *describe);
 void writeRecord(RecordIndex *recIndex ,off_t recordId , char *filename , off_t parrent ,unsigned char *MD5 , char *describe , off_t rec_size);
+off_t updateRecIndex(off_t rid,off_t rec_offset , off_t rec_size);
+RecordIndex getRecIndex(off_t rid);
 //append
 /*
 type:		get by filename						in the func.
@@ -837,10 +840,49 @@ void writeRecord(RecordIndex *recIndex ,off_t recordId , char *filename , off_t 
 		recordId,fileType , filename , parrent , now , rec_size , now , md5ToHex(MD5,md5Hex), describe);
 		//TODO verify ()
 		write(fd , record ,size );
-		//TODO rec_offset +++
-		//TODO update rec_IndexTable;
+		updateRecIndex(recordId , DB.rec_offset , rec_size);
+		DB.rec_offset+= size;
 		close(fd);
 		
+}
+off_t updateRecIndex(off_t rid,off_t rec_offset , off_t rec_size){
+		RecordIndex recIndex;
+		char recIndexFile[50];
+		off_t recIdxOffset;
+		sprintf(recIndexFile,"%srec.inx",DB.PATH);
+		int fd;
+		recIdxOffset = rid * sizeof(RecordIndex);
+
+		fd = open( recIndexFile ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
+		lseek(fd , recIdxOffset ,SEEK_SET);
+		recIndex.rid=rid;
+		recIndex.rec_offset = rec_offset;
+		recIndex.rec_size = rec_size;
+		write(fd , &recIndex ,sizeof(RecordIndex) );
+		close (fd);
+		getRecIndex(rid);
+
+		return 0;//TODO
+}
+RecordIndex getRecIndex(off_t rid){
+		RecordIndex recIndex;
+		char recIndexFile[50];
+		off_t recIdxOffset;
+		
+		sprintf(recIndexFile,"%srec.inx",DB.PATH);
+		int fd;
+		recIdxOffset = rid * sizeof(RecordIndex);
+
+		fd = open(recIndexFile , O_RDONLY);
+		if(fd<0){
+				//error handle
+		}
+		lseek(fd , recIdxOffset ,SEEK_SET);
+		read(fd , &recIndex , sizeof( RecordIndex ) );
+		fprintf(stderr , "rid: %zd;offset: %zd ;size : %zd" ,recIndex.rid , recIndex.rec_offset,recIndex.rec_size );
+		close(fd);
+
+		return recIndex;
 }
 off_t putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, off_t size, int byName,RecordIndex *recIndex, off_t rid , off_t rec_parrent , char *describe , char *name){
 		unsigned char md5out[MD5_DIGEST_LENGTH];
