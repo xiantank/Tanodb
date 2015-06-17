@@ -125,12 +125,13 @@ void saveRecordIndex(RecordIndex * recIndex);
  */
 void parseCmdToRec(char *optarg,off_t *rid,off_t *parrent,char *name,char *describe);
 void putRecord(off_t recordId , char *filename , off_t parrent ,unsigned char *MD5 , char *describe , off_t rec_size);
-void getRecord(off_t rid , char *buf);
-void updateRecord(RecordIndex recIndex , off_t recordId  );
+char *getRecord(off_t rid , char *buf);
+int getRecColumn(char *record , char *key , char *valueBuf);
+void updateRecord(RecordIndex recIndex , off_t recordId  , char *columnName , char *value);
 void deleteRecord(off_t rid);
 
 RecordIndex getRecIndex(off_t rid);
-off_t updateRecIndex(off_t rid , off_t rec_offset , off_t rec_size , unsigned char indexFlag );// TODO maybe use list all param ,not struct
+off_t updateRecIndex(off_t rid , off_t rec_offset , off_t rec_size , unsigned char indexFlag );
 off_t deleteRecIndex(off_t rid);
 //append
 /*
@@ -852,7 +853,7 @@ void putRecord(off_t recordId , char *filename , off_t parrent ,unsigned char *M
 		close(fd);
 		
 }
-void getRecord(off_t rid , char *record){
+char *getRecord(off_t rid , char *record){
 		RecordIndex recIndex=getRecIndex(rid);
 		char recFileName[100];
 		int fd;
@@ -860,16 +861,42 @@ void getRecord(off_t rid , char *record){
 		fd = open( recFileName ,O_RDONLY );
 		lseek(fd,recIndex.rec_offset,SEEK_SET);
 		read(fd , record , recIndex.rec_size);
-		return;
+		record[recIndex.rec_size] = '\0';
+		return record;
 
 
 }
 int getRecColumn(char *record , char *key , char *valueBuf){
 		/*
-		* return value : if 0 => fail ; if x => x = count of location from head
+		* return value : if 0 => fail ; if x => x = length of column (@key:value)
 		*/
+		char rec_key[50];
+		int rec_key_length;
+		char *recPtr=NULL , *valPtr=NULL , *ptr;
+		sprintf(rec_key , "@%s:" , key );
+		rec_key_length = strlen(rec_key);
+		//TODO
+		recPtr = strstr(record , rec_key);
+		if(recPtr){
+				valPtr = recPtr + rec_key_length;
+				ptr = valPtr;
+
+				/*find \n to get value*/
+				while(*ptr != '\0' || *ptr != '\n'){
+						ptr++;
+				}
+				*ptr = '\0'; //here must \n or \0 ; just remove \n;
+				strcpy( valueBuf , valPtr);
+				return ptr - recPtr;
+
+		}
+		else{
+				return 0;
+		}
 }
-void updateRecord(RecordIndex recIndex , off_t recordId  ){
+void updateRecord(RecordIndex recIndex , off_t recordId  , char *columnName , char *value){
+		//TODO
+
 }
 void deleteRecord(off_t rid){
 		deleteRecIndex(rid);
