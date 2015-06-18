@@ -124,7 +124,18 @@ void saveRecordIndex(RecordIndex * recIndex);
  * record function
  */
 void parseCmdToRec(char *optarg,off_t *rid,off_t *parrent,char *name,char *describe);
-void putRecord(off_t recordId , char *filename , off_t parrent ,unsigned char *MD5 , char *describe , off_t rec_size);
+void putRecord(off_t recordId ,char *filename , off_t parrent ,unsigned char *MD5 , char *describe , off_t rec_size);
+/*after putRecord : must saveDB()*/
+void writeRecord(off_t recordId , char *record , off_t rec_size , off_t rec_offset);
+/*
+direct write recordString to x.rec (write to end) and update recIndex;
+//TODO
+*/
+void rewriteRecord(off_t recordId , char *record , off_t rec_size);
+/*
+for new_rec_size > old_rec_size;
+//TODO 1. mark old record _deleteFlag:1 ; 2. update recIndex ; 3. append to end;
+*/
 char *getRecordString(off_t rid );
 void updateRecStringColumn(char *record , off_t rec_size , char *key , char *valueBuf);
 int getRecColumn(char *record , char *key , char *valueBuf , char **colHead);
@@ -171,7 +182,7 @@ int main(int argc , char *argv[] , char *envp[])
 		
 		int c=0;
 		char dbini[100];
-		char* const short_options = "b:dD:f:F:G:iI:LM:n:o:p:PR:s:u:";
+		char* const short_options = "b:dD:f:F:G:iI:LM:n:o:p:PR:s:T:u:";
 		off_t bytes=0,index=0,n,i , f_index;
 		off_t parrent=0 , rid;
 		char name[512],describe[1024];
@@ -202,6 +213,7 @@ int main(int argc , char *argv[] , char *envp[])
 				{ "search" , 1 , NULL , 'S'},
 				{ "delete" , 1 , NULL , 'D'},
 				{ "recordPut" , 1 , NULL , 'R'},
+				{ "test" , 1 , NULL , 'T'},
 				{ 0 , 0 , 0 , 0}
 		};
 		/*
@@ -300,11 +312,12 @@ int main(int argc , char *argv[] , char *envp[])
 							return 0;
 
 							break;*/
-						case 'G' : 
-							//TODO recover testing
-							tmprecord = getRecordString(atoi(optarg));
-							updateRecStringColumn(tmprecord ,  1024 , "name" , "helloWorld");
+						case 'T' :
+							//tmprecord = getRecordString(atoi(optarg));
+							updateRecord( atoi(optarg) ,  "name" , "helloWorld");
 							fprintf(stdout , "%s\n" ,getRecordString(atoi(optarg))  );return 0;
+							break;
+						case 'G' :
 							index = getItem(indexTable , fileIndex , optarg , md5out ,  true );
 //							fprintf(stderr,"[%zd]\n",index);
 							if(index==-1){
@@ -917,7 +930,6 @@ void updateRecStringColumn(char *record , off_t rec_size , char *key , char *val
 		char *recPtr = record , *colPtr , *endPtr; //point three part ; head , columnHead , after column
 		int colLen;
 		char *buf = (char *) malloc( sizeof(char) * rec_size +1);
-		char *area=buf;
 		/*ptr graph*/
 		/*v(recPtr)v(colPtr) v(endPtr)    */
 		/*@xx:xxx\n@key:val\n@XX:xxxxx */
@@ -925,6 +937,7 @@ void updateRecStringColumn(char *record , off_t rec_size , char *key , char *val
 		if(colLen){
 				endPtr = colPtr + colLen + 1 ;//skip \n
 				strncpy(buf , recPtr , colPtr - recPtr );
+				buf[colPtr-recPtr] = '\0';
 				sprintf(buf , "%s@%s:%s\n%s" , buf , key , valueBuf , endPtr);
 				memset(record , 0 , rec_size);
 				strcpy(record , buf);
@@ -934,58 +947,49 @@ void updateRecStringColumn(char *record , off_t rec_size , char *key , char *val
 				//return ;
 		}
 
-		free(area);
+		free(buf);
 		return ;
 }
-#if 0
 void updateRecord(off_t recordId  , char *columnName , char *value){
 		//TODO write back  ; if write back : check size isBigger than recInx.size//TODO
-		char *filename ;off_t parrent ;unsigned char *MD5 ; char *describe ; off_t rec_size;
-		fprintf(stderr , "rid:%zd\nfilename: %s\nparrent:%zd\ndescribe: %s\n",
-						recordId,filename,parrent,describe);
+		RecordIndex recIndex=getRecIndex(recordId);
 		int fd=-1;
 		char recFileName[100];
-		char *record , *ptr;
-		int size = sizeof(char) * DB.RECBLOCK;
-		int len;
-		char fileType[50]="" , md5Hex[33];
+		char *record ;
+		int size = recIndex.rec_size;
 		time_t now = time(NULL);
-		record = (char *) malloc ( size);
-		memset(record , 0 , size);
+		int isRecSizeChange=0;
+		char timeBuf[50];
+		record = getRecordString(recordId);
+		updateRecStringColumn(record ,  recIndex.rec_size , columnName , value);
+		sprintf( timeBuf , "%ld" , now);
+		updateRecStringColumn(record ,  recIndex.rec_size , "mtime" , timeBuf );
 
-
-		/*find filetype*/
-		
-		for(len = strlen(filename)-1;len>=0;len--){
-				if(filename[len] == '.'){
-						ptr = &filename[len];
-						strcpy(fileType , ++ptr);
-						break;
-				}
+		//TODO verify (); check size
+		if(!isRecSizeChange){
+				sprintf(recFileName,"%s001.rec",DB.PATH);
+				fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
+				lseek(fd,recIndex.rec_offset ,SEEK_SET);
+				write(fd , record ,size );
+				updateRecIndex(recordId , recIndex.rec_offset , size , INDEX_EXIST);
 		}
-		if(len <= 0){ //first character is '.'  that is not data type , is hidden!
-				strcpy(fileType , "none");				
+		else{
 		}
-		/*end find filetype*/
-
-		sprintf(recFileName,"%s001.rec",DB.PATH);
-		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
-		lseek(fd,DB.rec_offset,SEEK_SET);
-		sprintf(record , 
-		"@rid:%zd\n@_deleteFlag:%s@type:%s\n@name:%s\n@parrent:%zd\n@ctime:%ld\n@size:%zd\n@mtime:%ld\n@MD5:%s\n@desc:%s\n@_end:@\n",
-		recordId , "0",fileType , filename , parrent , now , rec_size , now , md5ToHex(MD5,md5Hex), describe);
-		//TODO verify ()
-		write(fd , record ,size );
-
-
-		updateRecIndex(recordId , DB.rec_offset , rec_size , INDEX_EXIST);
-		DB.rec_offset+= size;
 		close(fd);
 		
 
 
 }
-#endif
+void writeRecord(off_t recordId , char *record , off_t rec_size , off_t rec_offset){
+		int fd;
+		char recFileName[100];
+		sprintf(recFileName,"%s001.rec",DB.PATH);
+		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
+		lseek(fd,rec_offset ,SEEK_SET);
+		write(fd , record , rec_size );
+		updateRecIndex(recordId , rec_offset , rec_size , INDEX_EXIST);
+		return ;
+}
 void deleteRecord(off_t rid){
 		deleteRecIndex(rid);
 		//TODO deleteReal Record  //maybe @_deleteFlag set 1
