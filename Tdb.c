@@ -28,22 +28,22 @@ struct Index{
 struct FileIndex{
 		char filename[50];
 		unsigned char MD5[MD5_DIGEST_LENGTH];
-		off_t index;
+		long int index;
 		unsigned char indexFlag;
 };
 struct RecordIndex{
-		off_t rid;
+		long int rid;
 		//unsigned char MD5[MD5_DIGEST_LENGTH];
-		off_t rec_offset;
-		off_t rec_size;
+		long int rec_offset;
+		long int rec_size;
 		unsigned char indexFlag;
 };
 struct Record{
-		off_t recordId;
+		long int recordId;
 		char type[20];
 		char path[50];
 		int ctime;
-		off_t objectSize;
+		long int objectSize;
 		int mtime;
 		char tag[100];
 		char MD5[MD5_DIGEST_LENGTH];
@@ -83,15 +83,15 @@ typedef enum{
 struct Config{
 		char PATH[100];
 		int FILENUM;
-		off_t MAXFILESIZE;
+		long int MAXFILESIZE;
 		int BUCKETSIZE;
-		off_t BUCKETNUM;
+		long int BUCKETNUM;
 		unsigned int OBJSIZE;
 		unsigned char curFid;
-		off_t offset;
+		long int offset;
 		int isFull;
 		//RECORD
-		off_t rec_offset;
+		long int rec_offset;
 		int RECBLOCK;
 
 };
@@ -111,11 +111,11 @@ Config DB;
  */
 int init();
 int getVariable(void *start, int size , int nnum , char *filename);
-size_t receiveObj(int fd,unsigned char * obj , off_t bufferSize);
-off_t getIndex(unsigned char *md5 , Index * indexTable);
-off_t getIndexbyName(char *filename , FileIndex *fileIndex , int isFindex);
-off_t getItem( Index *indexTable , FileIndex *fileIndex,char *objname , unsigned char *md5out ,  int byName);
-off_t putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, off_t size, int byName,RecordIndex *recIndex, off_t rid , off_t rec_parrent , char *describe , char *name);
+size_t receiveObj(int fd,unsigned char * obj , long int bufferSize);
+long int getIndex(unsigned char *md5 , Index * indexTable);
+long int getIndexbyName(char *filename , FileIndex *fileIndex , int isFindex);
+long int getItem( Index *indexTable , FileIndex *fileIndex,char *ridString , unsigned char *md5out ,  int byRid);
+long int putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, long int size, int byName,RecordIndex *recIndex, long int rid , long int rec_parrent , char *describe , char *name);
 void saveDB();
 void saveIndex(Index *indexTable);//TODO only save modify index
 void saveFileIndex(FileIndex *fileIndex);
@@ -123,28 +123,29 @@ void saveRecordIndex(RecordIndex * recIndex);
 /*
  * record function
  */
-void parseCmdToRec(char *optarg,off_t *rid,off_t *parrent,char *name,char *describe);
-void putRecord(off_t recordId ,char *filename , off_t parrent ,unsigned char *MD5 , char *describe , off_t rec_size);
+void parseCmdToRec(char *optarg,long int *rid,long int *parrent,char *name,char *describe);
+void putRecord(long int recordId ,char *filename , long int parrent ,unsigned char *MD5 , char *describe , long int rec_size , long int obj_index);
 /*after putRecord : must saveDB()*/
-void writeRecord(off_t recordId , char *record , off_t rec_size , off_t rec_offset);
+void writeRecord(long int recordId , char *record , long int rec_size , long int rec_offset);
 /*
 direct write recordString to x.rec (write to end) and update recIndex;
 //TODO
 */
-void rewriteRecord(off_t recordId , char *record , off_t rec_size);
+void rewriteRecord(long int recordId , char *record , long int rec_size);
 /*
 for new_rec_size > old_rec_size;
 //TODO 1. mark old record _deleteFlag:1 ; 2. update recIndex ; 3. append to end;
 */
-char *getRecordString(off_t rid );
-void updateRecStringColumn(char *record , off_t rec_size , char *key , char *valueBuf);
-int getRecColumn(char *record , char *key , char *valueBuf , char **colHead);
-void updateRecord( off_t recordId  , char *columnName , char *value);
-void deleteRecord(off_t rid);
+char *getRecColumn(long int rid , char* key , char * valueBuf);
+char *getRecordString(long int rid );
+void updateRecStringColumn(char *record , long int rec_size , char *key , char *valueBuf);
+int getRecStringColumn(char *record , char *key , char *valueBuf , char **colHead);
+void updateRecord( long int recordId  , char *columnName , char *value);
+void deleteRecord(long int rid);
 
-RecordIndex getRecIndex(off_t rid);
-off_t updateRecIndex(off_t rid , off_t rec_offset , off_t rec_size , unsigned char indexFlag );
-off_t deleteRecIndex(off_t rid);
+RecordIndex getRecIndex(long int rid);
+long int updateRecIndex(long int rid , long int rec_offset , long int rec_size , unsigned char indexFlag );
+long int deleteRecIndex(long int rid);
 //append
 /*
 type:		get by filename						in the func.
@@ -157,18 +158,18 @@ recordId:	get from node.js
 /*
  * tool function
 */
-int putObject(int fd , off_t size , char *fileprefix , unsigned char *fid , off_t *offset );
-int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , off_t offset );
+int putObject(int fd , long int size , char *fileprefix , unsigned char *fid , long int *offset );
+int getObject(void *start , long int size , char *fileprefix , unsigned char fid , long int offset );
 int saveVariable(void *start, int size , int nnum , char *filename);
-unsigned char *md5(int fd , unsigned char * out , off_t length);
-unsigned char *md5str( char * in , unsigned char * out , off_t length);
-off_t readString(char **src , char * dst , int length);//src wiil move to new location
-off_t bytesToOffset(unsigned char *bytesNum,int size);
-void offsetTobytes(unsigned char *c_offset , off_t offset, int length);
-off_t getHV(unsigned char *md5);
-off_t findIndex(off_t hv , Index *indexTable);
-off_t findLocate(off_t hv , Index *indexTable);
-off_t updateIndex(Index *indexTable , FileIndex *fileIndex ,char *filename, unsigned char *md5 , unsigned char fid , off_t offset ,off_t size );
+unsigned char *md5(int fd , unsigned char * out , long int length);
+unsigned char *md5str( char * in , unsigned char * out , long int length);
+long int readString(char **src , char * dst , int length);//src wiil move to new location
+long int bytesToOffset(unsigned char *bytesNum,int size);
+void offsetTobytes(unsigned char *c_offset , long int offset, int length);
+long int getHV(unsigned char *md5);
+long int findIndex(long int hv , Index *indexTable);
+long int findLocate(long int hv , Index *indexTable);
+long int updateIndex(Index *indexTable , FileIndex *fileIndex ,char *filename, unsigned char *md5 , unsigned char fid , long int offset ,long int size );
 void hexToMD5(unsigned char* md5out , char *in);
 char *md5ToHex(unsigned char *MD5,char *hexBuf);
 unsigned char hexToChar(char c);
@@ -177,14 +178,15 @@ unsigned char hexToChar(char c);
 */
 int main(int argc , char *argv[] , char *envp[])
 {
-		char *tmprecord;
+		//char *tmprecord;
+		char buf[1024];
 
 		
 		int c=0;
 		char dbini[100];
 		char* const short_options = "b:dD:f:F:G:iI:LM:n:o:p:PR:s:T:u:";
-		off_t bytes=0,index=0,n,i , f_index;
-		off_t parrent=0 , rid;
+		long int bytes=0,index=0,n,i ;
+		long int parrent=0 , rid;
 		char name[512],describe[1024];
 		unsigned char md5out[MD5_DIGEST_LENGTH];
 		int fd;
@@ -228,7 +230,7 @@ int main(int argc , char *argv[] , char *envp[])
 							argFlag = argFlag | ARG_DBFILENUM;
 							break;
 						case 's' : 
-							DB.MAXFILESIZE = (off_t)atol(optarg);
+							DB.MAXFILESIZE = (long int)atol(optarg);
 							argFlag = argFlag | ARG_DBFILESIZE;
 							break;
 						case 'n' : 
@@ -299,7 +301,7 @@ int main(int argc , char *argv[] , char *envp[])
 /*						case 'M' : 
 							hexToMD5(md5out , optarg);
 							index = getItem(indexTable , fileIndex , filename , md5out ,  false );
-//							fprintf(stderr,"[%zd]\n",index);
+//							fprintf(stderr,"[%ld]\n",index);
 							if(index==-1){
 									fprintf(stderr , "obj not exist\n");
 									exit(1);
@@ -314,18 +316,18 @@ int main(int argc , char *argv[] , char *envp[])
 							break;*/
 						case 'T' :
 							//tmprecord = getRecordString(atoi(optarg));
-							updateRecord( atoi(optarg) ,  "name" , "helloWorld");
-							fprintf(stdout , "%s\n" ,getRecordString(atoi(optarg))  );return 0;
+							updateRecord( atol(optarg) ,  "name" , "helloWorld");
+							fprintf(stdout , "%s\n" ,getRecordString(atol(optarg))  );return 0;
 							break;
 						case 'G' :
 							index = getItem(indexTable , fileIndex , optarg , md5out ,  true );
-//							fprintf(stderr,"[%zd]\n",index);
+//							fprintf(stderr,"[%ld]\n",index);
 							if(index==-1){
 									fprintf(stderr , "obj not exist\n");
 									exit(1);
 							}
 #if DEBUG
-							fprintf(stderr,"[%zd]",index);
+							fprintf(stderr,"[%ld]",index);
 #endif
 //							write(STDOUT_FILENO , buffer , indexTable[index].size );
 							exit(0);
@@ -349,7 +351,7 @@ int main(int argc , char *argv[] , char *envp[])
 									exit(5);
 							}*/
 							index = putItem(indexTable , fileIndex , optarg , fd , bytes , true , recIndex , rid , parrent , describe , name);
-//off_t putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, off_t size, int byName,RecordIndex recIndex, off_t rid , char *rec_parrent , char *describe);
+//long int putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, long int size, int byName,RecordIndex recIndex, long int rid , char *rec_parrent , char *describe);
 							if(index == -1){
 									fprintf(stderr , "filename exist\n");
 									exit(2);
@@ -378,7 +380,7 @@ int main(int argc , char *argv[] , char *envp[])
 											if(n){
 													printf(",");
 											}
-											printf("{\"size\":%zd,\"filename\":\"%s\"}",(off_t)indexTable[fileIndex[i].index].size,fileIndex[i].filename);
+											printf("{\"size\":%ld,\"filename\":\"%s\"}",(long int)indexTable[fileIndex[i].index].size,fileIndex[i].filename);
 											n++;
 									}
 							}
@@ -395,7 +397,7 @@ int main(int argc , char *argv[] , char *envp[])
 											if(n){
 													printf(",");
 											}
-											printf("{\"size\":%zd,\"filename\":\"%s\"}",(off_t)indexTable[fileIndex[i].index].size,fileIndex[i].filename);
+											printf("{\"size\":%ld,\"filename\":\"%s\"}",(long int)indexTable[fileIndex[i].index].size,fileIndex[i].filename);
 											n++;
 									}
 							}
@@ -403,25 +405,34 @@ int main(int argc , char *argv[] , char *envp[])
 							exit(0);
 
 						case 'D' : 
-							f_index = getIndexbyName( optarg , fileIndex , true);
-							index = fileIndex[f_index].index;
+							//f_index = getIndexbyName( optarg , fileIndex , true);
+							//index = fileIndex[f_index].index;
+							
+							if( getRecColumn( atol(optarg) , "obj_index" , buf ) == NULL){
+									fprintf(stderr,"object not exist(n)\n");
+									exit(404);
+							}
+							index = atol( buf );
+							//TODO add obj_offset to putRecord
+							/*
 							if(f_index == -1){// obj not exist
 									fprintf(stderr,"object not exist(n)\n");
 									exit(404);
 							}
+							*/
 							if(indexTable[index].indexFlag & INDEX_DELETE){//obj not exist
 									fprintf(stderr,"object not exist(y)\n");
 									exit(404);
 							}
 							else{//do delete
-									fileIndex[f_index].indexFlag |= INDEX_DELETE;
+									//fileIndex[f_index].indexFlag |= INDEX_DELETE;
+									deleteRecord(rid);
 									indexTable[index].ref--;
 									if(indexTable[index].ref == 0){
 											indexTable[index].indexFlag |= INDEX_DELETE;
 									}
 									saveIndex(indexTable);
-									saveFileIndex(fileIndex);
-									saveRecordIndex(recIndex);
+									//saveFileIndex(fileIndex);
 									fprintf(stdout,"[%s] deleted!\n",optarg);
 							}
 							exit(0);
@@ -468,17 +479,17 @@ int init(){
 
 		return 1;
 }
-off_t getHV(unsigned char *md5){
-		off_t tmp=0;
+long int getHV(unsigned char *md5){
+		long int tmp=0;
 		tmp = bytesToOffset(&md5[0],8) ^ bytesToOffset(&md5[8],8);
 		if(tmp < 0 ) tmp = (tmp * -1);
 		return tmp % DB.BUCKETNUM;
 }
-off_t getIndexbyName(char *filename , FileIndex *fileIndex , int isFindex){
+long int getIndexbyName(char *filename , FileIndex *fileIndex , int isFindex){
 		unsigned char md5out[MD5_DIGEST_LENGTH];
 		md5str(filename , md5out , strlen(filename));
 
-		off_t hv = getHV(md5out);
+		long int hv = getHV(md5out);
 		if(isFindex == true){
 				return hv;
 		}
@@ -489,13 +500,13 @@ off_t getIndexbyName(char *filename , FileIndex *fileIndex , int isFindex){
 				return -1;
 		}
 }
-off_t getIndex(unsigned char *md5 , Index * indexTable){
-		off_t hv = getHV(md5);
+long int getIndex(unsigned char *md5 , Index * indexTable){
+		long int hv = getHV(md5);
 
 		return findIndex(hv , indexTable);
 		
 }
-off_t findIndex(off_t hv , Index *indexTable){
+long int findIndex(long int hv , Index *indexTable){
 		if( indexTable[hv].indexFlag & INDEX_EXIST){// check is INDEX_EXIST //TODO set flag
 				if(indexTable[hv].indexFlag & INDEX_DELETE){// INDEX_DELETE){ //TODO set flag
 						return -1;
@@ -512,8 +523,8 @@ off_t findIndex(off_t hv , Index *indexTable){
 				return -1;
 		}
 }
-size_t receiveObj(int fd,unsigned char * obj , off_t bufferSize){
-		off_t bytes=0,cnt=0;
+size_t receiveObj(int fd,unsigned char * obj , long int bufferSize){
+		long int bytes=0,cnt=0;
 		unsigned char *ptr = obj;
 		unsigned char buf[CHUNK];
 		//bytes=read(STDIN_FILENO, buf, 512);
@@ -532,11 +543,11 @@ size_t receiveObj(int fd,unsigned char * obj , off_t bufferSize){
 		return (ptr-obj);
 
 }
-unsigned char *md5str( char *in ,unsigned char * out,off_t length){
+unsigned char *md5str( char *in ,unsigned char * out,long int length){
         MD5_CTX c;
         char buf[512];
-        off_t bytes=0;
-        off_t readlen=512;
+        long int bytes=0;
+        long int readlen=512;
         //unsigned char out[MD5_DIGEST_LENGTH];
         memset(&c , 0 , sizeof(c));
 
@@ -565,11 +576,11 @@ unsigned char *md5str( char *in ,unsigned char * out,off_t length){
 
 }
 
-unsigned char *md5(int fdin,unsigned char * out,off_t length){
+unsigned char *md5(int fdin,unsigned char * out,long int length){
         MD5_CTX c;
         char buf[CHUNK];
         ssize_t bytes=0;
-        off_t readlen=CHUNK;
+        long int readlen=CHUNK;
         //unsigned char out[MD5_DIGEST_LENGTH];
         memset(&c , 0 , sizeof(c));
 
@@ -641,16 +652,16 @@ unsigned char hexToChar(char c){
 						 exit(4);
 		}
 }
-off_t bytesToOffset(unsigned char *bytesNum,int size){
+long int bytesToOffset(unsigned char *bytesNum,int size){
 		int i=0;
-		off_t sum = 0;
+		long int sum = 0;
 		for(i=0;i<size;i++){
 				sum = sum<<8;
 				sum = sum | bytesNum[i];
 		}
 		return sum;
 }
-off_t readString(char **src , char * dst , int length){
+long int readString(char **src , char * dst , int length){
 		char *cur = *src;
 		char *head = *src;
 		while( ( (cur-head) < length )  && ( *cur != EOF )  ){
@@ -727,14 +738,14 @@ int getVariable(void *start, int size , int nnum , char *filename){
 		}
 		return verify;
 }
-int putObject(int fdin , off_t size , char *fileprefix , unsigned char *fid , off_t *offset ){
+int putObject(int fdin , long int size , char *fileprefix , unsigned char *fid , long int *offset ){
 		//TODO check file size
 		int fileId = 0;
 		char filename[50]={};
 		int fd;
-		off_t verify=0;
+		long int verify=0;
 		unsigned char buf[CHUNK];
-		off_t readlen=CHUNK,bytes=0,length=size;
+		long int readlen=CHUNK,bytes=0,length=size;
 		
 
 		lseek(fdin,0,SEEK_SET);
@@ -767,11 +778,11 @@ int putObject(int fdin , off_t size , char *fileprefix , unsigned char *fid , of
 		*offset += verify;
 		return verify;
 }
-int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , off_t offset ){
+int getObject(void *start , long int size , char *fileprefix , unsigned char fid , long int offset ){
 		int fileId = 0;
 		char filename[50]={};
 		int fd;
-		off_t verify=-1;
+		long int verify=-1;
 		fileId = fileId | fid ;
 		sprintf(filename,"%s%04d",fileprefix,fileId);
 		fd = open(filename,O_RDONLY);
@@ -779,20 +790,27 @@ int getObject(void *start , off_t size , char *fileprefix , unsigned char fid , 
 		lseek(fd,offset,SEEK_SET);
 		verify = read(fd , start,size );
 		if(verify != ( size )){
-				fprintf(stderr , "getObj error[%d](%s)!\nread: %zd\n{%s}\n", errno , filename ,verify, (char*)start);
+				fprintf(stderr , "getObj error[%d](%s)!\nread: %ld\n{%s}\n", errno , filename ,verify, (char*)start);
 				return -1;
 				//TODO some error handle
 		}
 		return verify;
 }
-off_t getItem( Index *indexTable , FileIndex *fileIndex , char *objname , unsigned char *md5out , int byName){
+long int getItem( Index *indexTable , FileIndex *fileIndex , char *ridString , unsigned char *md5out , int byRid){
 		
-		off_t index=-1,bytes = 0 ;
+		long int index=-1,bytes = 0 ;
 		int fd=-1;
 		int fileId = 0;
 		char filename[100];
-		if(byName == 1){
-				index = getIndexbyName(objname , fileIndex , false);//TODO should get ft.index , not findex
+		long int rid = atol(ridString);
+		char buf[CHUNK];
+		if(byRid == 1){
+				//index = getIndexbyName(objname , fileIndex , false);//TODO should get ft.index , not findex
+				if( getRecColumn( rid , "obj_index" , buf ) == NULL){
+						fprintf(stderr , "err rid in getItem");
+						return -1;
+				}
+				index = atol(buf);
 		}else{
 				index = getIndex(md5out , indexTable);
 		}
@@ -804,8 +822,7 @@ off_t getItem( Index *indexTable , FileIndex *fileIndex , char *objname , unsign
 		fd = open(filename,O_RDONLY);
 		//lseek;
 		lseek(fd,bytesToOffset(indexTable[index].offset,INDEX_OFFSET_LENGTH ),SEEK_SET);
-		char buf[CHUNK];
-        off_t readlen=CHUNK,length = indexTable[index].size;
+        long int readlen=CHUNK,length = indexTable[index].size;
         //unsigned char out[MD5_DIGEST_LENGTH];
 
         //bytes=readString(&in , buf, readlen);
@@ -830,8 +847,8 @@ off_t getItem( Index *indexTable , FileIndex *fileIndex , char *objname , unsign
 		return index;
 
 }
-void putRecord(off_t recordId , char *filename , off_t parrent ,unsigned char *MD5 , char *describe , off_t rec_size){
-		fprintf(stderr , "rid:%zd\nfilename: %s\nparrent:%zd\ndescribe: %s\n",
+void putRecord(long int recordId , char *filename , long int parrent ,unsigned char *MD5 , char *describe , long int rec_size , long int obj_index){
+		fprintf(stderr , "rid:%ld\nfilename: %s\nparrent:%ld\ndescribe: %s\n",
 						recordId,filename,parrent,describe);
 		int fd=-1;
 		char recFileName[100];
@@ -862,8 +879,9 @@ void putRecord(off_t recordId , char *filename , off_t parrent ,unsigned char *M
 		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
 		lseek(fd,DB.rec_offset,SEEK_SET);
 		sprintf(record , 
-		"@rid:%zd\n@_deleteFlag:%s\n@type:%s\n@name:%s\n@parrent:%zd\n@ctime:%ld\n@size:%zd\n@mtime:%ld\n@MD5:%s\n@desc:%s\n@_end:@\n",
-		recordId , "0",fileType , filename , parrent , now , rec_size , now , md5ToHex(MD5,md5Hex), describe);
+		"@rid:%ld\n@_deleteFlag:%s\n@obj_index:%ld\n@type:%s\n@name:%s\n@parrent:%ld\n@ctime:%ld\n@size:%ld\n@mtime:%ld\n@MD5:%s\n@desc:%s\n@_end:@\n",
+		recordId , "0", obj_index , fileType , filename , parrent 
+		, now , rec_size , now , md5ToHex(MD5,md5Hex), describe);
 		//TODO verify ()
 		write(fd , record ,size );
 
@@ -873,7 +891,7 @@ void putRecord(off_t recordId , char *filename , off_t parrent ,unsigned char *M
 		close(fd);
 		
 }
-char *getRecordString(off_t rid ){//TODO write back function ; if write back : check size isBigger than recInx.size
+char *getRecordString(long int rid ){//TODO write back function ; if write back : check size isBigger than recInx.size
 		char *record;
 		RecordIndex recIndex=getRecIndex(rid);
 		int size = sizeof(char ) * recIndex.rec_size * 2;
@@ -895,7 +913,7 @@ void freeRecordString(char *record){
 		free(record);
 		return;
 }
-int getRecColumn(char *record , char *key , char *valueBuf , char **colHead){
+int getRecStringColumn(char *record , char *key , char *valueBuf , char **colHead){
 		/*
 		* return value : if 0 => fail ; if x => x = length of column (@key:value)
 		*/
@@ -907,7 +925,9 @@ int getRecColumn(char *record , char *key , char *valueBuf , char **colHead){
 		//TODO
 		colPtr = strstr(record , rec_key);
 		if(colPtr){
-				*colHead = colPtr;
+				if(colHead){
+						*colHead = colPtr;
+				}
 				valPtr = colPtr + rec_key_length;
 				ptr = valPtr;
 
@@ -926,14 +946,14 @@ int getRecColumn(char *record , char *key , char *valueBuf , char **colHead){
 				return 0;
 		}
 }
-void updateRecStringColumn(char *record , off_t rec_size , char *key , char *valueBuf){
+void updateRecStringColumn(char *record , long int rec_size , char *key , char *valueBuf){
 		char *recPtr = record , *colPtr , *endPtr; //point three part ; head , columnHead , after column
 		int colLen;
 		char *buf = (char *) malloc( sizeof(char) * rec_size +1);
 		/*ptr graph*/
 		/*v(recPtr)v(colPtr) v(endPtr)    */
 		/*@xx:xxx\n@key:val\n@XX:xxxxx */
-		colLen = getRecColumn(record , key , buf , &colPtr);
+		colLen = getRecStringColumn(record , key , buf , &colPtr);
 		if(colLen){
 				endPtr = colPtr + colLen + 1 ;//skip \n
 				strncpy(buf , recPtr , colPtr - recPtr );
@@ -950,7 +970,16 @@ void updateRecStringColumn(char *record , off_t rec_size , char *key , char *val
 		free(buf);
 		return ;
 }
-void updateRecord(off_t recordId  , char *columnName , char *value){
+char *getRecColumn(long int rid , char* key , char * valueBuf){
+		char *record = getRecordString(rid);
+		int result;
+		result = getRecStringColumn( record  , key , valueBuf , NULL);
+		free(record);
+		if(result == 0) return NULL;
+		return valueBuf;
+
+}
+void updateRecord(long int recordId  , char *columnName , char *value){
 		//TODO write back  ; if write back : check size isBigger than recInx.size//TODO
 		RecordIndex recIndex=getRecIndex(recordId);
 		int fd=-1;
@@ -980,7 +1009,7 @@ void updateRecord(off_t recordId  , char *columnName , char *value){
 
 
 }
-void writeRecord(off_t recordId , char *record , off_t rec_size , off_t rec_offset){
+void writeRecord(long int recordId , char *record , long int rec_size , long int rec_offset){
 		int fd;
 		char recFileName[100];
 		sprintf(recFileName,"%s001.rec",DB.PATH);
@@ -990,15 +1019,16 @@ void writeRecord(off_t recordId , char *record , off_t rec_size , off_t rec_offs
 		updateRecIndex(recordId , rec_offset , rec_size , INDEX_EXIST);
 		return ;
 }
-void deleteRecord(off_t rid){
+void deleteRecord(long int rid){
 		deleteRecIndex(rid);
 		//TODO deleteReal Record  //maybe @_deleteFlag set 1
+		updateRecord( rid  , "@_deleteFlag" , "1");
 
 }
 
-off_t updateRecIndex(off_t rid , off_t rec_offset , off_t rec_size , unsigned char indexFlag ){
+long int updateRecIndex(long int rid , long int rec_offset , long int rec_size , unsigned char indexFlag ){
 		char recIndexFile[50];
-		off_t recIdxOffset;
+		long int recIdxOffset;
 		RecordIndex recIndex = { rid , rec_offset , rec_size , indexFlag};
 		sprintf(recIndexFile,"%srec.inx",DB.PATH);
 		int fd;
@@ -1014,10 +1044,10 @@ off_t updateRecIndex(off_t rid , off_t rec_offset , off_t rec_size , unsigned ch
 
 		return 0;//TODO
 }
-RecordIndex getRecIndex(off_t rid){
+RecordIndex getRecIndex(long int rid){
 		RecordIndex recIndex;
 		char recIndexFile[50];
-		off_t recIdxOffset;
+		long int recIdxOffset;
 		
 		sprintf(recIndexFile,"%srec.inx",DB.PATH);
 		int fd;
@@ -1031,34 +1061,27 @@ RecordIndex getRecIndex(off_t rid){
 		read(fd , &recIndex , sizeof( RecordIndex ) );
 		
 #if DEBUG
-		fprintf(stderr , "rid: %zd;offset: %zd ;size : %zd ;flag:%d" ,recIndex.rid , recIndex.rec_offset,recIndex.rec_size,recIndex.indexFlag);
+		fprintf(stderr , "rid: %ld;offset: %ld ;size : %ld ;flag:%d" ,recIndex.rid , recIndex.rec_offset,recIndex.rec_size,recIndex.indexFlag);
 #endif
 		close(fd);
 
 		return recIndex;
 }
-off_t deleteRecIndex(off_t rid){
+long int deleteRecIndex(long int rid){
 		updateRecIndex( rid , -1 , 0 , INDEX_DELETE);
 
 		return 0;//TODO
 
 }
-off_t putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, off_t size, int byName,RecordIndex *recIndex, off_t rid , off_t rec_parrent , char *describe , char *name){
+long int putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, long int size, int byName,RecordIndex *recIndex, long int rid , long int rec_parrent , char *describe , char *name){
 		unsigned char md5out[MD5_DIGEST_LENGTH];
-		off_t index = -1 , f_index = -1 , startOffset , bytes;
+		long int index = -1 , f_index = -1 , startOffset , bytes;
 		md5(fd , md5out , size);
 		index = getIndex(md5out , indexTable);
 		f_index = getIndexbyName(filename , fileIndex , true); //TODO should get findex ,not fT.index
 		if(fileIndex[f_index].indexFlag & INDEX_EXIST && !(fileIndex[f_index].indexFlag & INDEX_DELETE)){
 				return -1;
 		}
-		/*put to RDB*/
-		putRecord( rid , name , rec_parrent , md5out , describe , size );
-
-
-
-
-		/*end put to RDB*/
 
 		if(index != -1){//it found in table
 				//TODO save fileIndex:save filename and point to indexTable;
@@ -1066,27 +1089,34 @@ off_t putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, of
 				indexTable[index].indexFlag = indexTable[index].indexFlag & 0xfe; 
 				indexTable[index].ref++;
 				saveIndex(indexTable);
+				/*put to RDB*/
+				putRecord( rid , name , rec_parrent , md5out , describe , size , index);
+				/*end put to RDB*/
 
+				/*
 				memcpy(fileIndex[f_index].filename,filename , strlen(filename) );
 				memcpy ( fileIndex[f_index].MD5  , md5out , MD5_DIGEST_LENGTH);
 				fileIndex[f_index].index = index;
 				fileIndex[f_index].indexFlag = INDEX_EXIST;
 				saveFileIndex(fileIndex);
-				//TODO saveRecordIndex();
+				*/
 				return index;
 		}
 		startOffset = DB.offset;
 		bytes = putObject( fd , size , DB.PATH , &DB.curFid , &DB.offset);
 		index = updateIndex(indexTable , fileIndex , filename , md5out , DB.curFid , startOffset , size);
+		/*put to RDB*/
+		putRecord( rid , name , rec_parrent , md5out , describe , size , index);
+		/*end put to RDB*/
 		if(bytes != indexTable[index].size){//TODO error handle
 		}
 		////memcpy(buffer,md5out,MD5_DIGEST_LENGTH);
 		saveDB();
 		return index;
 }
-off_t updateIndex(Index *indexTable , FileIndex *fileIndex ,char *filename, unsigned char *md5 , unsigned char fid , off_t offset , off_t size ){
+long int updateIndex(Index *indexTable , FileIndex *fileIndex ,char *filename, unsigned char *md5 , unsigned char fid , long int offset , long int size ){
 
-		off_t locate =-1 , f_index;
+		long int locate =-1 , f_index;
 		locate = findLocate(getHV(md5) , indexTable);
 		if(locate == -1){
 				DB.isFull = 1;
@@ -1099,10 +1129,6 @@ off_t updateIndex(Index *indexTable , FileIndex *fileIndex ,char *filename, unsi
 		fileIndex[f_index].index = locate;
 		fileIndex[f_index].indexFlag = INDEX_EXIST;
 		saveFileIndex(fileIndex);
-		//TODO saveRecordIndex();
-
-
-
 
 		memcpy(indexTable[locate].MD5 , md5 , MD5_DIGEST_LENGTH );
 		indexTable[locate].fid = DB.curFid ;
@@ -1116,8 +1142,8 @@ off_t updateIndex(Index *indexTable , FileIndex *fileIndex ,char *filename, unsi
 		return locate;
 
 }
-off_t findLocate(off_t hv , Index *indexTable){
-		off_t i;
+long int findLocate(long int hv , Index *indexTable){
+		long int i;
 		for(i=0 ; i<DB.BUCKETNUM ; i++,hv++){
 				if(i == DB.BUCKETNUM) hv %= DB.BUCKETNUM;
 				if(indexTable[hv].indexFlag & INDEX_EXIST && !(indexTable[hv].indexFlag & INDEX_DELETE)){
@@ -1130,14 +1156,14 @@ off_t findLocate(off_t hv , Index *indexTable){
 		}
 		return -1;
 }
-void offsetTobytes(unsigned char *c_offset , off_t offset, int length){
+void offsetTobytes(unsigned char *c_offset , long int offset, int length){
 		int i=0;
 		for(i=length-1;i>=0;i--){
 				c_offset[i] = offset & 0xff;
 				offset = offset >> 8;
 		}
 }
-void parseCmdToRec(char *optarg,off_t *rid,off_t *parrent,char *name,char *describe){
+void parseCmdToRec(char *optarg,long int *rid,long int *parrent,char *name,char *describe){
 		char *rptr,*pptr,*nptr,*dptr,*ptr;
 		
 		ptr = optarg;
@@ -1166,8 +1192,8 @@ void parseCmdToRec(char *optarg,off_t *rid,off_t *parrent,char *name,char *descr
 		dptr = ptr;
 
 		
-		*rid = (off_t) atof(rptr);
-		*parrent = (off_t) atof(pptr);
+		*rid = (long int) atof(rptr);
+		*parrent = (long int) atof(pptr);
 		strcpy(name,nptr);
 		strcpy(describe,dptr);
 
