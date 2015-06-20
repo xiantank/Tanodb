@@ -316,7 +316,8 @@ int main(int argc , char *argv[] , char *envp[])
 							break;*/
 						case 'T' :
 							//tmprecord = getRecordString(atoi(optarg));
-							updateRecord( atol(optarg) ,  "name" , "helloWorld");
+							updateRecord( atol(optarg) ,  "children" , "14");
+							updateRecord( atol(optarg) ,  "children" , "14,24");
 							fprintf(stdout , "%s\n" ,getRecordString(atol(optarg))  );return 0;
 							break;
 						case 'G' :
@@ -873,13 +874,19 @@ void putRecord(long int recordId , char *filename , long int parrent ,unsigned c
 		if(len <= 0){ //first character is '.'  that is not data type , is hidden!
 				strcpy(fileType , "none");				
 		}
+		/*TODO create dir
+		if(filename == /.*+\.dir/ ){
+				name = (.*+)\.dir ;
+				fileType = dir;
+		}
+		*/
 		/*end find filetype*/
 
 		sprintf(recFileName,"%s001.rec",DB.PATH);
 		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
 		lseek(fd,DB.rec_offset,SEEK_SET);
 		sprintf(record , 
-		"@rid:%ld\n@_deleteFlag:%s\n@obj_index:%ld\n@type:%s\n@name:%s\n@parrent:%ld\n@ctime:%ld\n@size:%ld\n@mtime:%ld\n@MD5:%s\n@desc:%s\n@_end:@\n",
+		"@rid:%ld\n@_deleteFlag:%s\n@obj_index:%ld\n@type:%s\n@name:%s\n@parrent:%ld\n@ctime:%ld\n@size:%ld\n@mtime:%ld\n@MD5:%s\n@desc:%s\n@children:@_end:@\n",
 		recordId , "0", obj_index , fileType , filename , parrent 
 		, now , rec_size , now , md5ToHex(MD5,md5Hex), describe);
 		//TODO verify ()
@@ -888,6 +895,15 @@ void putRecord(long int recordId , char *filename , long int parrent ,unsigned c
 
 		updateRecIndex(recordId , DB.rec_offset , size , INDEX_EXIST);
 		DB.rec_offset+= size;
+		/*TODO addToDir(){
+				string = getColumn("children" , parrent);
+				if ( string ){//already has children
+						string += ','+rid;
+				}else{
+						updateColumn(parrent , children , <rid>);
+				}
+		}
+		*/
 		close(fd);
 		
 }
