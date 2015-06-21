@@ -184,7 +184,7 @@ int main(int argc , char *argv[] , char *envp[])
 		
 		int c=0;
 		char dbini[100];
-		char* const short_options = "b:dD:f:F:G:iI:LM:n:o:p:PR:s:T:u:";
+		char* const short_options = "b:C:d:D:f:F:G:iI:LM:n:o:p:Pr:R:s:T:u:U:";
 		long int bytes=0,index=0,n,i ;
 		long int parrent=0 , rid;
 		char name[512],describe[1024];
@@ -196,25 +196,27 @@ int main(int argc , char *argv[] , char *envp[])
 		RecordIndex *recIndex;
 		struct option long_options[] = {
 				{ "init" , 0 , NULL , 'i' },
-				{ "default" , 0 , NULL , 'd' },
-				{ "fnum" , 1 , NULL , 'u' },
-				{ "fsize" , 1 , NULL , 's' },
-				{ "bnum" , 1 , NULL , 'n' },
-				{ "bsize" , 1 , NULL , 'b' },
-				{ "maxobjsize" , 1 , NULL , 'o' },
+				//{ "default" , 0 , NULL , 'd' },
+				//{ "fnum" , 1 , NULL , 'u' },
+				//{ "fsize" , 1 , NULL , 's' },
+				//{ "bnum" , 1 , NULL , 'n' },
+				//{ "bsize" , 1 , NULL , 'b' },
+				//{ "maxobjsize" , 1 , NULL , 'o' },
 				{ "path" , 1 , NULL , 'p' },
-				{ "filename" , 1 , NULL , 'f' },
-
-//				{ "parrent" , 1 , NULL , 'r'},
+				//{ "filename" , 1 , NULL , 'f' },
+				//{ "parrent" , 1 , NULL , 'r'},
 				{ "md5GET" , 1 , NULL , 'M'},
-				{ "GET" , 1 , NULL , 'G'},
-				{ "idGET" , 1 , NULL , 'I'},
+				{ "recordInfo" , 1 , NULL , 'I'},
 				{ "PUT" , 0 , NULL , 'P'},
+				{ "GET" , 1 , NULL , 'G'},
+				{ "delete" , 1 , NULL , 'd'},
 				{ "file-put" , 1 , NULL , 'F'},
 				{ "list" , 0 , NULL , 'L'},
 				{ "search" , 1 , NULL , 'S'},
-				{ "delete" , 1 , NULL , 'D'},
-				{ "recordPut" , 1 , NULL , 'R'},
+				{ "createDir" , 1 , NULL , 'C'},
+				{ "readDir" , 1 , NULL , 'R'},
+				{ "updateDir" , 1 , NULL , 'U'},
+				{ "deleteDir" , 1 , NULL , 'D'},
 				{ "test" , 1 , NULL , 'T'},
 				{ 0 , 0 , 0 , 0}
 		};
@@ -289,14 +291,7 @@ int main(int argc , char *argv[] , char *envp[])
 							memset(recIndex , 0 , sizeof(RecordIndex)*DB.BUCKETNUM);
 							argFlag = argFlag | ARG_INIT;
 							break;
-						case 'd' : 
-							if(argFlag != 2){//NOT REALLY USE!!!
-									fprintf(stderr,
-									"argument init must placed at the top\n%s --init --default [options]\n",argv[0]);
-									exit(1);
-							}
-							init();	//init DB setting 
-							argFlag = argFlag | ARG_DEFAULT;
+						case 'D' : 
 							break;
 /*						case 'M' : 
 							hexToMD5(md5out , optarg);
@@ -332,10 +327,7 @@ int main(int argc , char *argv[] , char *envp[])
 #endif
 //							write(STDOUT_FILENO , buffer , indexTable[index].size );
 							exit(0);
-						case 'I' : 
-
-							break;
-						case 'R':
+						case 'I':
 							parseCmdToRec(optarg,&rid,&parrent,name,describe);
 							break;
 						case 'F' : 
@@ -405,7 +397,7 @@ int main(int argc , char *argv[] , char *envp[])
 							printf("]");
 							exit(0);
 
-						case 'D' : 
+						case 'd' : 
 							//f_index = getIndexbyName( optarg , fileIndex , true);
 							//index = fileIndex[f_index].index;
 							
@@ -427,7 +419,7 @@ int main(int argc , char *argv[] , char *envp[])
 							}
 							else{//do delete
 									//fileIndex[f_index].indexFlag |= INDEX_DELETE;
-									deleteRecord(rid);
+									deleteRecord(atol(optarg));
 									indexTable[index].ref--;
 									if(indexTable[index].ref == 0){
 											indexTable[index].indexFlag |= INDEX_DELETE;
@@ -886,7 +878,7 @@ void putRecord(long int recordId , char *filename , long int parrent ,unsigned c
 		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
 		lseek(fd,DB.rec_offset,SEEK_SET);
 		sprintf(record , 
-		"@rid:%ld\n@_deleteFlag:%s\n@obj_index:%ld\n@type:%s\n@name:%s\n@parrent:%ld\n@ctime:%ld\n@size:%ld\n@mtime:%ld\n@MD5:%s\n@desc:%s\n@children:@_end:@\n",
+		"@rid:%ld\n@_deleteFlag:%s\n@obj_index:%ld\n@type:%s\n@name:%s\n@parrent:%ld\n@ctime:%ld\n@size:%ld\n@mtime:%ld\n@MD5:%s\n@desc:%s\n@children:\n@_end:@\n",
 		recordId , "0", obj_index , fileType , filename , parrent 
 		, now , rec_size , now , md5ToHex(MD5,md5Hex), describe);
 		//TODO verify ()
@@ -1036,9 +1028,9 @@ void writeRecord(long int recordId , char *record , long int rec_size , long int
 		return ;
 }
 void deleteRecord(long int rid){
+		updateRecord( rid  , "_deleteFlag" , "1");
 		deleteRecIndex(rid);
 		//TODO deleteReal Record  //maybe @_deleteFlag set 1
-		updateRecord( rid  , "@_deleteFlag" , "1");
 
 }
 
