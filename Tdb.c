@@ -152,7 +152,6 @@ void createDir(long int rid , long int parrent , char *filename , char *describe
 void addToDir(long int rid , long int parrent);
 void readDir(long int Drid);
 char *traverseChildren(char *childrenString , char (*callback)(char *));
-char *gaisRecToJson(char *gaisRec , char *buf);
 /*callback*/
 void printChildJson(char *childRec);
 //append
@@ -167,6 +166,7 @@ recordId:	get from node.js
 /*
  * tool function
 */
+char *gaisRecToJson(char *gaisRec , char *buf);
 int putObject(int fd , long int size , char *fileprefix , unsigned char *fid , long int *offset );
 int getObject(void *start , long int size , char *fileprefix , unsigned char fid , long int offset );
 int saveVariable(void *start, int size , int nnum , char *filename);
@@ -259,7 +259,7 @@ int main(int argc , char *argv[] , char *envp[])
 							break;
 						case 'f' :
 							argFlag = argFlag | ARG_FILENAME;
-							sprintf(dbini,"%sfn.inx",DB.PATH);
+							sprintf(dbini,"db%sfn.inx",DB.PATH);
 							getVariable( (void *)fileIndex, sizeof(FileIndex) , DB.BUCKETNUM , dbini);
 							break;
 						case 'p' : 
@@ -272,13 +272,13 @@ int main(int argc , char *argv[] , char *envp[])
 									fileIndex = (FileIndex *) malloc ( sizeof(FileIndex) * DB.BUCKETNUM);
 									
 									recIndex = (RecordIndex *) malloc ( sizeof(RecordIndex) * DB.BUCKETNUM);
-									sprintf(dbini,"%srec.inx",DB.PATH);
+									sprintf(dbini,"db%srec.inx",DB.PATH);
 									getVariable( (void *)recIndex, sizeof(recIndex) , DB.BUCKETNUM , dbini);
 									
 									memset(indexTable , 0 , sizeof(Index)*DB.BUCKETNUM);
 									sprintf(dbini,"%sdb.inx",DB.PATH);
 									getVariable( (void *)indexTable, sizeof(Index) , DB.BUCKETNUM , dbini);
-									sprintf(dbini,"%sfn.inx",DB.PATH);
+									sprintf(dbini,"db%sfn.inx",DB.PATH);
 									getVariable( (void *)fileIndex, sizeof(FileIndex) , DB.BUCKETNUM , dbini);
 									strcpy(DB.PATH,optarg);
 
@@ -718,7 +718,7 @@ void saveDB(){
 void saveFileIndex(FileIndex *fileIndex){
 		char fileIndexFile[100];
 		int tmp=-2;
-		sprintf(fileIndexFile,"%sfn.inx",DB.PATH);
+		sprintf(fileIndexFile,"db%sfn.inx",DB.PATH);
 		tmp = saveVariable( (void *) fileIndex, sizeof(FileIndex) , DB.BUCKETNUM , fileIndexFile);
 		if(tmp != (sizeof(FileIndex) * DB.BUCKETNUM) ){
 				fprintf(stderr , "[%d] saveFileIndex() error\n",tmp);
@@ -728,7 +728,7 @@ void saveFileIndex(FileIndex *fileIndex){
 void saveRecordIndex(RecordIndex *recIndex){
 		char recIndexFile[100];
 		int tmp=-2;
-		sprintf(recIndexFile,"%srec.inx",DB.PATH);
+		sprintf(recIndexFile,"db%srec.inx",DB.PATH);
 		tmp = saveVariable( (void *) recIndex , sizeof(RecordIndex) , DB.BUCKETNUM , recIndexFile);
 		if(tmp != (sizeof(RecordIndex) * DB.BUCKETNUM) ){
 				fprintf(stderr , "[%d] saveRecordIndex() error\n",tmp);
@@ -881,7 +881,7 @@ void createDir(long int rid , long int parrent , char *filename , char *describe
 		
 		strcpy(fileType , "dir");				
 
-		sprintf(recFileName,"%s001.rec",DB.PATH);
+		sprintf(recFileName,"db%s001.rec",DB.PATH);
 		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
 		lseek(fd,DB.rec_offset,SEEK_SET);
 		sprintf(record , 
@@ -1069,7 +1069,7 @@ void putRecord(long int recordId , char *filename , long int parrent ,unsigned c
 		*/
 		/*end find filetype*/
 
-		sprintf(recFileName,"%s001.rec",DB.PATH);
+		sprintf(recFileName,"db%s001.rec",DB.PATH);
 		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
 		lseek(fd,DB.rec_offset,SEEK_SET);
 		sprintf(record , 
@@ -1104,7 +1104,7 @@ char *getRecordString(long int rid ){//TODO write back function ; if write back 
 
 		char recFileName[100];
 		int fd;
-		sprintf(recFileName,"%s001.rec",DB.PATH);
+		sprintf(recFileName,"db%s001.rec",DB.PATH);
 		fd = open( recFileName ,O_RDONLY );
 		lseek(fd,recIndex.rec_offset,SEEK_SET);
 		read(fd , record , recIndex.rec_size);
@@ -1200,7 +1200,7 @@ void updateRecord(long int recordId  , char *columnName , char *value){
 
 		//TODO verify (); check size
 		if(!isRecSizeChange){
-				sprintf(recFileName,"%s001.rec",DB.PATH);
+				sprintf(recFileName,"db%s001.rec",DB.PATH);
 				fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
 				lseek(fd,recIndex.rec_offset ,SEEK_SET);
 				write(fd , record ,size );
@@ -1216,7 +1216,7 @@ void updateRecord(long int recordId  , char *columnName , char *value){
 void writeRecord(long int recordId , char *record , long int rec_size , long int rec_offset){
 		int fd;
 		char recFileName[100];
-		sprintf(recFileName,"%s001.rec",DB.PATH);
+		sprintf(recFileName,"db%s001.rec",DB.PATH);
 		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
 		lseek(fd,rec_offset ,SEEK_SET);
 		write(fd , record , rec_size );
@@ -1234,7 +1234,7 @@ long int updateRecIndex(long int rid , long int rec_offset , long int rec_size ,
 		char recIndexFile[50];
 		long int recIdxOffset;
 		RecordIndex recIndex = { rid , rec_offset , rec_size , indexFlag};
-		sprintf(recIndexFile,"%srec.inx",DB.PATH);
+		sprintf(recIndexFile,"db%srec.inx",DB.PATH);
 		int fd;
 		recIdxOffset = recIndex.rid * sizeof(RecordIndex);
 
@@ -1253,7 +1253,7 @@ RecordIndex getRecIndex(long int rid){
 		char recIndexFile[50];
 		long int recIdxOffset;
 		
-		sprintf(recIndexFile,"%srec.inx",DB.PATH);
+		sprintf(recIndexFile,"db%srec.inx",DB.PATH);
 		int fd;
 		recIdxOffset = rid * sizeof(RecordIndex);
 
