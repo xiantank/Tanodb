@@ -37,6 +37,7 @@ function generalList( objs ){
 						filesize.innerHTML=objs[i].size;
 						list.appendChild(filesize);
 				}
+				list.value = objs[i];
 				fileList.appendChild(list);
 		}
 		var lists = document.querySelectorAll('.item-list');
@@ -246,10 +247,10 @@ function search(){
 
 }
 function downloadFile(e) {
-		download(this.id);
+		download(this.id,this.value.name);
 }
-function download(filename){
-		window.location.href="/odb/"+db+"/get/"+filename;
+function download(rid,filename){
+		window.location.href="/odb/"+db+"/get/"+ rid + "/" +filename;
 		console.log("dblclick");
 }
 function message(msg){
