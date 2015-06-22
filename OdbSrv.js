@@ -18,6 +18,7 @@ var usePort = 9935;
 
 var debug = true;
 
+var rid = 1;
 var server = http.createServer(app);
 
 app.set('jsonp callback name');
@@ -59,7 +60,7 @@ app.use(express.static(__dirname + '/public'));
 
 		      res.sendFile("index.html",options);
 });*/
-app.post('/odb/:db/put/:filename',function(req,res){
+app.post('/odb/:db/:parrent/put/:filename',function(req,res){
 		var wrong = function(errMessage){
 				var resStr = errMessage || '';
 				res.write(resStr);
@@ -71,7 +72,8 @@ app.post('/odb/:db/put/:filename',function(req,res){
 				res.end();
 		}
 		if(req.files && req.files.file){
-				para = ["-p" , req.params.db , "-F" , req.files.file.path ];
+				var recordInfo = rid++ +";"+ req.params.parrent +";"+ req.params.filename +";"+ req.params.filename;
+				para = ["-p" , req.params.db , "-I" , recordInfo , "--file-put" , req.files.file.path ];
 
 				var odb = spawn('./odb' , para);
 				var str = '';
@@ -128,7 +130,7 @@ app.post('/odb/:db/search',function(req,res){
 		res.end("File list FAIL.");
 });
 
-app.post('/odb/:db/list',function(req,res){
+app.post('/odb/:db/list/:rid',function(req,res){
 		var wrong = function(errMessage){
 				var resStr = errMessage || '';
 				res.write(resStr);
@@ -137,7 +139,7 @@ app.post('/odb/:db/list',function(req,res){
 		var para = [];
 		var resSet = false;
 		if( req.params && req.params.db  ){
-			para = ["-p",req.params.db,"--list"];
+			para = ["-p",req.params.db,"--readDir",req.params.rid];
 			var odb = spawn('./odb' , para);
 			var str = '';
 			var erstr='';
@@ -162,7 +164,7 @@ app.post('/odb/:db/list',function(req,res){
 		}
 		res.end("File list FAIL.");
 });
-app.get('/odb/:db/get/:filename',function(req,res){
+app.get('/odb/:db/get/:rid',function(req,res){
 		var wrong = function(errMessage){
 				var resStr = errMessage || '';
 				res.write(resStr);
@@ -208,8 +210,8 @@ app.get('/odb/:db/get/:filename',function(req,res){
 			return;
 		}else */
 		if( req.params  ){
-			if(req.params.filename){
-				para = ["-p",req.params.db,"-G",req.params.filename];
+			if(req.params.rid){
+				para = ["-p",req.params.db,"--file-get",req.params.rid];
 				console.log(JSON.stringify(para));
 			}else{
 				wrong("error argument<br\\>\r\n");
@@ -244,7 +246,7 @@ app.get('/odb/:db/get/:filename',function(req,res){
 
 				//res.end("File upload FAIL.");
 });
-app.get('/odb/:db/delete/:filename',function(req,res){
+app.get('/odb/:db/delete/:rid',function(req,res){
 		var wrong = function(errMessage){
 				var resStr = errMessage || '';
 				res.write(resStr);
@@ -287,8 +289,8 @@ app.get('/odb/:db/delete/:filename',function(req,res){
 			return;
 		}else */
 		if( req.params  ){
-			if(req.params.filename){
-				para = ["-p",req.params.db,"--delete",req.params.filename];
+			if(req.params.rid){
+				para = ["-p",req.params.db,"--delete",req.params.rid];
 				console.log(JSON.stringify(para));
 			}else{
 				wrong("error argument<br\\>\r\n");
