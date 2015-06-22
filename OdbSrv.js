@@ -164,7 +164,7 @@ app.post('/odb/:db/list/:rid',function(req,res){
 		}
 		res.end("File list FAIL.");
 });
-app.get('/odb/:db/get/:rid',function(req,res){
+app.get('/odb/:db/get/:rid/:filename?',function(req,res){
 		var wrong = function(errMessage){
 				var resStr = errMessage || '';
 				res.write(resStr);
@@ -223,7 +223,7 @@ app.get('/odb/:db/get/:rid',function(req,res){
 			//res.set({'Content-Type: ':'application/octet-stream'});
 			odb.stdout.on('data', function (data) {
 							if(!resSet){
-									res.set({'Content-disposition':'attachment'});
+									res.set({'Content-disposition':'attachment',"filename":req.params.filename});
 									resSet = true;
 							}
 							res.write(data);
