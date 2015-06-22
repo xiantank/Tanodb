@@ -146,6 +146,9 @@ void deleteRecord(long int rid);
 RecordIndex getRecIndex(long int rid);
 long int updateRecIndex(long int rid , long int rec_offset , long int rec_size , unsigned char indexFlag );
 long int deleteRecIndex(long int rid);
+/*dirRec function*/
+void createDir(long int rid , long int parrent , char *filename , char *describe);
+void addToDir(long int rid , long int parrent);
 //append
 /*
 type:		get by filename						in the func.
@@ -184,7 +187,7 @@ int main(int argc , char *argv[] , char *envp[])
 		
 		int c=0;
 		char dbini[100];
-		char* const short_options = "b:C:d:D:f:F:G:iI:LM:n:o:p:Pr:R:s:T:u:U:";
+		char* const short_options = "b:Cd:D:f:F:G:iI:LM:n:o:p:Pr:R:s:T:u:U:";
 		long int bytes=0,index=0,n,i ;
 		long int parrent=0 , rid;
 		char name[512],describe[1024];
@@ -218,6 +221,7 @@ int main(int argc , char *argv[] , char *envp[])
 				{ "updateDir" , 1 , NULL , 'U'},
 				{ "deleteDir" , 1 , NULL , 'D'},
 				{ "test" , 1 , NULL , 'T'},
+				{ "recordGet" , 1 , NULL , 'r'},
 				{ 0 , 0 , 0 , 0}
 		};
 		/*
@@ -272,6 +276,8 @@ int main(int argc , char *argv[] , char *envp[])
 									getVariable( (void *)fileIndex, sizeof(FileIndex) , DB.BUCKETNUM , dbini);
 									strcpy(DB.PATH,optarg);
 
+
+
 									//buffer = (unsigned char *) malloc ( sizeof(unsigned char) * DB.OBJSIZE);
 									//memset(buffer , 0 , DB.OBJSIZE);
 							}
@@ -291,6 +297,12 @@ int main(int argc , char *argv[] , char *envp[])
 							memset(recIndex , 0 , sizeof(RecordIndex)*DB.BUCKETNUM);
 							argFlag = argFlag | ARG_INIT;
 							break;
+						case 'C' : 
+							//putRecord( rid , name , rec_parrent , md5out , describe , size , index);
+							//parseCmdToRec(optarg,&rid,&parrent,name,describe);
+							createDir(rid , parrent , name , describe);
+							
+							break;
 						case 'D' : 
 							break;
 /*						case 'M' : 
@@ -309,6 +321,9 @@ int main(int argc , char *argv[] , char *envp[])
 							return 0;
 
 							break;*/
+						case 'r' :
+							fprintf(stdout , "%s\n" ,getRecordString(atol(optarg))  );return 0;
+							break;
 						case 'T' :
 							//tmprecord = getRecordString(atoi(optarg));
 							updateRecord( atol(optarg) ,  "children" , "14");
@@ -437,10 +452,12 @@ int main(int argc , char *argv[] , char *envp[])
 				exit(1);
 		}
 		if(argFlag & ARG_INIT){//that is must init
-				saveDB();
 				saveIndex(indexTable);
 				saveFileIndex(fileIndex);
 				saveRecordIndex(recIndex);
+				createDir( 0 , 0 , "root" , "root");
+				saveDB();
+
 				exit(0);
 
 		}else if(argFlag == (ARG_PATH)){//only arg:path
@@ -840,6 +857,58 @@ long int getItem( Index *indexTable , FileIndex *fileIndex , char *ridString , u
 		return index;
 
 }
+void createDir(long int rid , long int parrent , char *filename , char *describe){
+		int fd=-1;
+		char recFileName[100];
+		char *record ;
+		int size = sizeof(char) * DB.RECBLOCK * 4;
+		char fileType[50]="" ;
+		time_t now = time(NULL);
+		record = (char *) malloc ( size);
+		memset(record , 0 , size);
+
+
+		/*give dir filetype*/
+		
+		strcpy(fileType , "dir");				
+
+		sprintf(recFileName,"%s001.rec",DB.PATH);
+		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
+		lseek(fd,DB.rec_offset,SEEK_SET);
+		sprintf(record , 
+		"@rid:%ld\n@_deleteFlag:%s\n@type:%s\n@name:%s\n@parrent:%ld\n@ctime:%ld\n@mtime:%ld\n@desc:%s\n@children:\n@_end:@\n",
+		rid , "0",  fileType , filename , parrent 
+		, now , now , describe);
+		//TODO verify ()
+		write(fd , record ,size );
+
+
+		updateRecIndex( rid , DB.rec_offset , size , INDEX_EXIST);
+		DB.rec_offset+= size;
+		addToDir(rid , parrent);
+		/*TODO addToDir(){
+				string = getRecColumn("children" , parrent);
+				if ( string ){//already has children
+						string += ','+rid;
+				}else{
+						updateColumn(parrent , children , <rid>);
+				}
+		}
+		*/
+		close(fd);
+}
+void addToDir(long int rid , long int parrent){
+		char *childrenBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
+		getRecColumn( parrent , "children" , childrenBuf) ;
+		if( childrenBuf[0] == '\0' ){//no child
+				sprintf(childrenBuf , "%ld" , rid);
+		}
+		else{//already has some children
+				sprintf(childrenBuf , "%s,%ld" , childrenBuf , rid);
+		}
+		updateRecord( parrent , "children" , childrenBuf );
+		free(childrenBuf);
+}
 void putRecord(long int recordId , char *filename , long int parrent ,unsigned char *MD5 , char *describe , long int rec_size , long int obj_index){
 		fprintf(stderr , "rid:%ld\nfilename: %s\nparrent:%ld\ndescribe: %s\n",
 						recordId,filename,parrent,describe);
@@ -878,7 +947,7 @@ void putRecord(long int recordId , char *filename , long int parrent ,unsigned c
 		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
 		lseek(fd,DB.rec_offset,SEEK_SET);
 		sprintf(record , 
-		"@rid:%ld\n@_deleteFlag:%s\n@obj_index:%ld\n@type:%s\n@name:%s\n@parrent:%ld\n@ctime:%ld\n@size:%ld\n@mtime:%ld\n@MD5:%s\n@desc:%s\n@children:\n@_end:@\n",
+		"@rid:%ld\n@_deleteFlag:%s\n@obj_index:%ld\n@type:%s\n@name:%s\n@parrent:%ld\n@ctime:%ld\n@size:%ld\n@mtime:%ld\n@MD5:%s\n@desc:%s\n@_end:@\n",
 		recordId , "0", obj_index , fileType , filename , parrent 
 		, now , rec_size , now , md5ToHex(MD5,md5Hex), describe);
 		//TODO verify ()
@@ -887,6 +956,7 @@ void putRecord(long int recordId , char *filename , long int parrent ,unsigned c
 
 		updateRecIndex(recordId , DB.rec_offset , size , INDEX_EXIST);
 		DB.rec_offset+= size;
+		addToDir(recordId , parrent);
 		/*TODO addToDir(){
 				string = getColumn("children" , parrent);
 				if ( string ){//already has children
