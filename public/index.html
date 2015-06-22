@@ -12,6 +12,7 @@ Data Engineering project 1 - odb
 var dragSrcEl = null;
 var MAXFILESIZE = 512 * 1024 * 1024;
 var db = "db";
+var currentDir = 0;
 function generalList( objs ){
 		console.log(objs);
 		var fileList = document.getElementById("fileList");
@@ -23,17 +24,19 @@ function generalList( objs ){
 
 		for(var i in objs){
 				var list = document.createElement('div');
-				list.setAttribute("id",objs[i].filename);
+				list.setAttribute("id",objs[i].rid);
 				list.setAttribute("class","item-list");
 				list.setAttribute("draggable","true");
 				var filename = document.createElement("span");
 				filename.setAttribute("class","flow-left");
-				filename.innerHTML=objs[i].filename;
-				var filesize = document.createElement("span");
-				filesize.setAttribute("class","flow-right");
-				filesize.innerHTML=objs[i].size;
+				filename.innerHTML=objs[i].name;
 				list.appendChild(filename);
-				list.appendChild(filesize);
+				if(objs[i].size){
+						var filesize = document.createElement("span");
+						filesize.setAttribute("class","flow-right");
+						filesize.innerHTML=objs[i].size;
+						list.appendChild(filesize);
+				}
 				fileList.appendChild(list);
 		}
 		var lists = document.querySelectorAll('.item-list');
@@ -126,7 +129,7 @@ function upload(files,i){
 		var formData = new FormData();
 				formData.append('file', files[i]);
 				var xhr = new XMLHttpRequest();
-				xhr.open('POST', "/odb/"+db+"/put/"+files[i].name);
+				xhr.open('POST', "/odb/" + db+"/" + currentDir  +"/put/"+files[i].name);
 				xhr.onload = function () {
 						if (xhr.status === 200) {
 								console.log('all done: ' + xhr.status);
@@ -165,6 +168,7 @@ function deleteDrop(e) {
 		this.classList.remove("over");
 		//TODO send delete request
 		var xhr = new XMLHttpRequest();
+		//TODO check if item.type == dir => deleteDir
 		xhr.open('GET', "/odb/"+db+"/delete/"+itemId);
 		xhr.onload = function () {
 				if (xhr.status === 200) {
@@ -187,18 +191,18 @@ function deleteDrop(e) {
 		return false;
 }
 function showList(){
-		url="/odb/db/list";
+		url="/odb/db/list/"+currentDir;
 		$.ajax({
 				url: url,
 				type:"POST",
 				success: function(msg){
 				console.log("sucess:"+msg);
-				//try{
-				generalList( JSON.parse(msg) );
-				/*}catch(e){
+				try{
+				generalList( JSON.parse(msg).children );
+				}catch(e){
 				  console.log(e);
 				  return;
-				  }*/
+				  }
 				},
 				error: function(msg){
 					console.log("[error]"+msg);
@@ -208,6 +212,7 @@ function showList(){
 }
 
 function search(){
+		//TODO
 		var search = document.getElementById('search').value;
 		if(search === "") {
 				message("can not be empty");
@@ -216,7 +221,8 @@ function search(){
 
 		url="/odb/db/search";
 		var formData = {search:search};
-		/*var formData = new FormData();
+		/*
+		var formData = new FormData();
 		formData.append('objsearch', search);
 		*/
 		$.ajax({
