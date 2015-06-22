@@ -151,9 +151,10 @@ long int deleteRecIndex(long int rid);
 void createDir(long int rid , long int parrent , char *filename , char *describe);
 void addToDir(long int rid , long int parrent);
 void readDir(long int Drid);
-char *traverseChildren(char *childrenString , char (*callback)(char *));
+void deleteDir(long int Drid);
+char *traverseChildren(char *childrenString , char (*callback)(long int));
 /*callback*/
-void printChildJson(char *childRec);
+void printChildJson(long int childRid);
 //append
 /*
 type:		get by filename						in the func.
@@ -193,7 +194,7 @@ int main(int argc , char *argv[] , char *envp[])
 		
 		int c=0;
 		char dbini[100];
-		char* const short_options = "b:Cd:D:f:F:G:iI:LM:n:o:p:Pr:R:s:T:u:U:";
+		char* const short_options = "b:Cd:D:f:F:G:iI:LM:n:o:p:Pr:R:s:T:u:";
 		long int bytes=0,index=0,n,i ;
 		long int parrent=0 , rid;
 		char name[512],describe[1024];
@@ -224,7 +225,6 @@ int main(int argc , char *argv[] , char *envp[])
 				{ "search" , 1 , NULL , 'S'},
 				{ "createDir" , 1 , NULL , 'C'},
 				{ "readDir" , 1 , NULL , 'R'},
-				{ "updateDir" , 1 , NULL , 'U'},
 				{ "deleteDir" , 1 , NULL , 'D'},
 				{ "test" , 1 , NULL , 'T'},
 				{ "recordGet" , 1 , NULL , 'r'},
@@ -313,6 +313,7 @@ int main(int argc , char *argv[] , char *envp[])
 							readDir(atol (optarg));
 							break;
 						case 'D' : 
+							deleteDir( atol (optarg));
 							break;
 /*						case 'M' : 
 							hexToMD5(md5out , optarg);
@@ -905,6 +906,7 @@ void createDir(long int rid , long int parrent , char *filename , char *describe
 		}
 		*/
 		close(fd);
+		saveDB();
 }
 void addToDir(long int rid , long int parrent){
 		char *childrenBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
@@ -918,8 +920,24 @@ void addToDir(long int rid , long int parrent){
 		updateRecord( parrent , "children" , childrenBuf );
 		free(childrenBuf);
 }
+void deleteDir(long int Drid){
+		char *childrenBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
+		childrenBuf = getRecColumn( Drid , "children" , childrenBuf) ;
+		if(childrenBuf == NULL){
+				fprintf(stderr ,"Not directory\n");
+				return ;
+		}
+		if( childrenBuf[0] == '\0' ){//no child
+				printf("{\"action\":\"readDir\",\"children\":[]}");
+		}
+		else{
+				traverseChildren(childrenBuf , (void *)&deleteRecord);
+		}
+		free(childrenBuf);
+
+}
+
 void readDir(long int Drid){
-		long int rid;
 		char *childrenBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
 		childrenBuf = getRecColumn( Drid , "children" , childrenBuf) ;
 		if(childrenBuf == NULL){
@@ -932,43 +950,39 @@ void readDir(long int Drid){
 		else{
 				printf("{\"action\":\"readDir\",\"children\":[");
 				traverseChildren(childrenBuf , (void *)&printChildJson);
-				printChildJson(NULL);//clear printChildJson.isFirst
+				printChildJson(-1);//clear printChildJson.isFirst
 				printf("]}");
 		}
 		free(childrenBuf);
 
 }
-void printChildJson(char *childRec){
-		char *jsonBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
+void printChildJson(long int childRid){
 		static int isFirst=true;
-		if(childRec == NULL){
+		if(childRid == -1){
 				isFirst=true;
 				return ;
 		}
-		char * childJson = gaisRecToJson( childRec , jsonBuf);
+		char *childRec = getRecordString(childRid);
+		char *jsonBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
+		jsonBuf = gaisRecToJson( childRec , jsonBuf);
 		if(isFirst){
-				printf("%s" , childJson);
+				printf("%s" , jsonBuf );
 				isFirst = false;
 		}else{
-				printf(",%s" , childJson);
+				printf(",%s" , jsonBuf );
 		}
 		free (jsonBuf);
 }
-char *traverseChildren(char *childrenString , char (*callback)(char *)){
+char *traverseChildren(char *childrenString , char (*callback)(long int)){
 		char *cBuf = (char *) malloc ( sizeof(char) * strlen(childrenString) + 1 ) ;
-		char *childRec=NULL;
-		char *jsonBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
 		strcpy(cBuf , childrenString );
 
 		char *ptr = cBuf , *cptr = ptr;
 		while(*ptr && *ptr != '\n'){
-				childRec = getRecordString(atol(cptr));
-				callback( childRec );
+				callback( atol(cptr) );
 				while( isdigit(*ptr) ){//skip to next child
 						ptr++;
 				}
-				free (childRec);
-				childRec = NULL;
 				if(*ptr == ',')cptr = ++ptr;
 				else break;
 
@@ -1093,6 +1107,7 @@ void putRecord(long int recordId , char *filename , long int parrent ,unsigned c
 		}
 		*/
 		close(fd);
+		saveDB();
 		
 }
 char *getRecordString(long int rid ){//TODO write back function ; if write back : check size isBigger than recInx.size
