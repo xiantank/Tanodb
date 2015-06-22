@@ -997,19 +997,19 @@ void deleteFromParrent(long int rid , long int Drid){
 						while(*sptr){
 								*(dptr++) = *(sptr++);
 						}
-						updateRecord( rid  , "children" , childrenBuf);
+						updateRecord( Drid  , "children" , childrenBuf);
 				}else if( sprintf(target , "%ld" , rid) && !strcmp(childrenBuf , target ) ){
 						childrenBuf[0]='\0';
-						updateRecord( rid  , "children" , childrenBuf);
+						updateRecord( Drid  , "children" , childrenBuf);
 				}else if( sprintf(target , ",%ld," , rid) && (dptr=strstr(childrenBuf , target ) ) ){
 						sptr = dptr+strlen(target);
 						while(*sptr){
 								*(dptr++) = *(sptr++);
 						}
-						updateRecord( rid  , "children" , childrenBuf);
+						updateRecord( Drid  , "children" , childrenBuf);
 				}else if( sprintf(target , ",%ld" , rid) && ( dptr = strstr(childrenBuf , target ) ) ){
 						*dptr = '\0';
-						updateRecord( rid  , "children" , childrenBuf);
+						updateRecord( Drid  , "children" , childrenBuf);
 				}
 		}
 		free(childrenBuf);
@@ -1340,13 +1340,13 @@ long int deleteRecIndex(long int rid){
 }
 long int putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, long int size, int byName,RecordIndex *recIndex, long int rid , long int rec_parrent , char *describe , char *name){
 		unsigned char md5out[MD5_DIGEST_LENGTH];
-		long int index = -1 , f_index = -1 , startOffset , bytes;
+		long int index = -1 , startOffset , bytes;
 		md5(fd , md5out , size);
 		index = getIndex(md5out , indexTable);
-		f_index = getIndexbyName(filename , fileIndex , true); //TODO should get findex ,not fT.index
+		/*f_index = getIndexbyName(filename , fileIndex , true); //TODO should get findex ,not fT.index
 		if(fileIndex[f_index].indexFlag & INDEX_EXIST && !(fileIndex[f_index].indexFlag & INDEX_DELETE)){
 				return -1;
-		}
+		}*/
 
 		if(index != -1){//it found in table
 				//TODO save fileIndex:save filename and point to indexTable;
