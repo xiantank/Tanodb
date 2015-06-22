@@ -5,6 +5,7 @@
 #include<stdlib.h>
 #include<string.h>
 #include<fcntl.h>
+#include<ctype.h>
 #include<sys/stat.h>
 #include <inttypes.h>
 #include<sys/types.h>
@@ -149,6 +150,11 @@ long int deleteRecIndex(long int rid);
 /*dirRec function*/
 void createDir(long int rid , long int parrent , char *filename , char *describe);
 void addToDir(long int rid , long int parrent);
+void readDir(long int Drid);
+char *traverseChildren(char *childrenString , char (*callback)(char *));
+char *gaisRecToJson(char *gaisRec , char *buf);
+/*callback*/
+void printChildJson(char *childRec);
 //append
 /*
 type:		get by filename						in the func.
@@ -302,6 +308,9 @@ int main(int argc , char *argv[] , char *envp[])
 							//parseCmdToRec(optarg,&rid,&parrent,name,describe);
 							createDir(rid , parrent , name , describe);
 							
+							break;
+						case 'R':
+							readDir(atol (optarg));
 							break;
 						case 'D' : 
 							break;
@@ -908,6 +917,123 @@ void addToDir(long int rid , long int parrent){
 		}
 		updateRecord( parrent , "children" , childrenBuf );
 		free(childrenBuf);
+}
+void readDir(long int Drid){
+		long int rid;
+		char *childrenBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
+		childrenBuf = getRecColumn( Drid , "children" , childrenBuf) ;
+		if(childrenBuf == NULL){
+				fprintf(stderr ,"Not directory\n");
+				return ;
+		}
+		if( childrenBuf[0] == '\0' ){//no child
+				printf("{\"action\":\"readDir\",\"children\":[]}");
+		}
+		else{
+				printf("{\"action\":\"readDir\",\"children\":[");
+				traverseChildren(childrenBuf , (void *)&printChildJson);
+				printChildJson(NULL);//clear printChildJson.isFirst
+				printf("]}");
+		}
+		free(childrenBuf);
+
+}
+void printChildJson(char *childRec){
+		char *jsonBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
+		static int isFirst=true;
+		if(childRec == NULL){
+				isFirst=true;
+				return ;
+		}
+		char * childJson = gaisRecToJson( childRec , jsonBuf);
+		if(isFirst){
+				printf("%s" , childJson);
+				isFirst = false;
+		}else{
+				printf(",%s" , childJson);
+		}
+		free (jsonBuf);
+}
+char *traverseChildren(char *childrenString , char (*callback)(char *)){
+		char *cBuf = (char *) malloc ( sizeof(char) * strlen(childrenString) + 1 ) ;
+		char *childRec=NULL;
+		char *jsonBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
+		strcpy(cBuf , childrenString );
+
+		char *ptr = cBuf , *cptr = ptr;
+		while(*ptr && *ptr != '\n'){
+				childRec = getRecordString(atol(cptr));
+				callback( childRec );
+				while( isdigit(*ptr) ){//skip to next child
+						ptr++;
+				}
+				free (childRec);
+				childRec = NULL;
+				if(*ptr == ',')cptr = ++ptr;
+				else break;
+
+		}
+		
+
+		return NULL;
+}
+char *gaisRecToJson(char *gaisRec , char *buf){
+		//TODO
+		//int len = strlen (gaisRec);
+		char *ptr=gaisRec;
+		char *tmp;
+		char *key=NULL,*value=NULL;
+		int isFirst=true;
+		sprintf(buf , "{");
+		while(*ptr){
+				while(*ptr && *ptr != '\n'){
+						/*if( !col && strncmp(ptr,"@rid:" , 5 ) ){
+								col = ptr;
+								ptr++;
+								continue;
+						}
+						else */
+						if( !key && *ptr =='@'){
+								tmp = ptr;
+								while(*tmp && *tmp != ':' && *tmp != '\n' ) {
+										tmp++;
+								}
+								if(*tmp == ':'){
+										key = ++ptr;
+										*tmp = '\0';
+										value= ++tmp;
+										while(*tmp && *tmp != '\n'){
+												tmp++;
+										}
+										if(*tmp == '\n'){//got key & value;
+												*tmp = '\0';
+												ptr = tmp;
+												if(!isFirst){
+														sprintf(buf , "%s,\"%s\":\"%s\"" , buf , key , value);
+												}else{
+														isFirst=false;
+														sprintf(buf , "%s\"%s\":\"%s\"" , buf , key , value);
+												}
+										}else{//should not 
+												fprintf(stderr , "wrong gais record format:\n%s",gaisRec);
+												exit(500);
+										}
+								}else{//should not 
+										fprintf(stderr , "wrong gais record format:\n%s",gaisRec);
+										exit(500);
+								}
+								key = value = tmp = NULL;
+						}
+						else{//should not 
+								fprintf(stderr , "wrong gais record format:\n%s",gaisRec);
+								exit(500);
+
+						}
+						ptr++;
+				}
+		}
+		sprintf(buf , "%s}",buf);
+		return buf;
 }
 void putRecord(long int recordId , char *filename , long int parrent ,unsigned char *MD5 , char *describe , long int rec_size , long int obj_index){
 		fprintf(stderr , "rid:%ld\nfilename: %s\nparrent:%ld\ndescribe: %s\n",
