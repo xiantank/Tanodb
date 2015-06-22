@@ -143,6 +143,7 @@ void updateRecStringColumn(char *record , long int rec_size , char *key , char *
 int getRecStringColumn(char *record , char *key , char *valueBuf , char **colHead);
 void updateRecord( long int recordId  , char *columnName , char *value);
 void deleteRecord(long int rid);
+void deleteFromParrent(long int rid , long int Drid);
 
 RecordIndex getRecIndex(long int rid);
 long int updateRecIndex(long int rid , long int rec_offset , long int rec_size , unsigned char indexFlag );
@@ -194,7 +195,7 @@ int main(int argc , char *argv[] , char *envp[])
 		
 		int c=0;
 		char dbini[100];
-		char* const short_options = "b:Cd:D:f:F:G:iI:LM:n:o:p:Pr:R:s:T:u:";
+		char* const short_options = "b:Cd:D:f:F:G:iI:LM:n:o:p:r:R:s:T:u:";
 		long int bytes=0,index=0,n,i ;
 		long int parrent=0 , rid;
 		char name[512],describe[1024];
@@ -217,10 +218,9 @@ int main(int argc , char *argv[] , char *envp[])
 				//{ "parrent" , 1 , NULL , 'r'},
 				{ "md5GET" , 1 , NULL , 'M'},
 				{ "recordInfo" , 1 , NULL , 'I'},
-				{ "PUT" , 0 , NULL , 'P'},
-				{ "GET" , 1 , NULL , 'G'},
 				{ "delete" , 1 , NULL , 'd'},
 				{ "file-put" , 1 , NULL , 'F'},
+				{ "file-get" , 1 , NULL , 'G'},
 				{ "list" , 0 , NULL , 'L'},
 				{ "search" , 1 , NULL , 'S'},
 				{ "createDir" , 1 , NULL , 'C'},
@@ -313,6 +313,10 @@ int main(int argc , char *argv[] , char *envp[])
 							readDir(atol (optarg));
 							break;
 						case 'D' : 
+							if(atol(optarg) == 0){
+									fprintf(stderr , "can not remove root\n");
+									exit(403) ;
+							}
 							deleteDir( atol (optarg));
 							break;
 /*						case 'M' : 
@@ -933,6 +937,7 @@ void deleteDir(long int Drid){
 		else{
 				traverseChildren(childrenBuf , (void *)&deleteRecord);
 		}
+		deleteRecord(Drid);//delete self;
 		free(childrenBuf);
 
 }
@@ -972,6 +977,44 @@ void printChildJson(long int childRid){
 				printf(",%s" , jsonBuf );
 		}
 		free (jsonBuf);
+}
+void deleteFromParrent(long int rid , long int Drid){
+		char *childrenBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
+		char target[50],*sptr , *dptr;
+		childrenBuf = getRecColumn( Drid , "children" , childrenBuf) ;
+		if(childrenBuf == NULL){
+				fprintf(stderr ,"Not directory\n");
+				return ;
+		}
+		if( childrenBuf[0] == '\0' ){//something error
+				fprintf(stderr,"no child!delete rid(%ld) in parrent(%ld)\n" , rid ,Drid );
+				exit(404);
+		}
+		else{
+				if( sprintf(target , "%ld," , rid) && !strncmp(childrenBuf , target , strlen(target) ) ){
+						sptr = childrenBuf+strlen(target);
+						dptr = childrenBuf;
+						while(*sptr){
+								*(dptr++) = *(sptr++);
+						}
+						updateRecord( rid  , "children" , childrenBuf);
+				}else if( sprintf(target , "%ld" , rid) && !strcmp(childrenBuf , target ) ){
+						childrenBuf[0]='\0';
+						updateRecord( rid  , "children" , childrenBuf);
+				}else if( sprintf(target , ",%ld," , rid) && (dptr=strstr(childrenBuf , target ) ) ){
+						sptr = dptr+strlen(target);
+						while(*sptr){
+								*(dptr++) = *(sptr++);
+						}
+						updateRecord( rid  , "children" , childrenBuf);
+				}else if( sprintf(target , ",%ld" , rid) && ( dptr = strstr(childrenBuf , target ) ) ){
+						*dptr = '\0';
+						updateRecord( rid  , "children" , childrenBuf);
+				}
+		}
+		free(childrenBuf);
+
+
 }
 char *traverseChildren(char *childrenString , char (*callback)(long int)){
 		char *cBuf = (char *) malloc ( sizeof(char) * strlen(childrenString) + 1 ) ;
@@ -1239,8 +1282,11 @@ void writeRecord(long int recordId , char *record , long int rec_size , long int
 		return ;
 }
 void deleteRecord(long int rid){
+		char parrentBuf[50];
+		getRecColumn( rid , "parrent" , parrentBuf);
 		updateRecord( rid  , "_deleteFlag" , "1");
 		deleteRecIndex(rid);
+		deleteFromParrent(rid , atol(parrentBuf));
 		//TODO deleteReal Record  //maybe @_deleteFlag set 1
 
 }
