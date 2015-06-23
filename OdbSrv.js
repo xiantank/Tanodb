@@ -60,6 +60,35 @@ app.use(express.static(__dirname + '/public'));
 
 		      res.sendFile("index.html",options);
 });*/
+app.post('/odb/:db/:parrent/createDir/:filename',function(req,res){
+		var para = [];
+		if(req.params.filename && req.params.parrent){
+				var recordInfo = rid++ +";"+ req.params.parrent +";"+ req.params.filename +";"+ req.params.filename;
+				para = ["-p" , req.params.db , "-I" , recordInfo , "-C" ];
+
+				var odb = spawn('./odb' , para);
+				var str = '';
+				var erstr='';
+				odb.stdout.pipe(process.stdout);
+				odb.stderr.pipe(process.stdout);
+				odb.stdout.on('data', function (data) {
+						str += data;
+						});
+
+				odb.stderr.on('data', function (data) {
+								erstr += data;
+								res.write(data);
+								});
+				odb.on('exit', function (code) {
+								res.write(str);
+								res.end("directory create success.");
+								});
+				return;
+		
+		}
+		res.end("Directory create FAIL.");
+});
+
 app.post('/odb/:db/:parrent/put/:filename',function(req,res){
 		var wrong = function(errMessage){
 				var resStr = errMessage || '';
