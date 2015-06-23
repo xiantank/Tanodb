@@ -29,11 +29,15 @@ html, body{
 		height:5rem;
 		width:100%;
 }
+.topbar-img{
+		height: 5rem;
+		width: 5rem;
+}
 .item-list{
 		display:inline-block;
 		//float:left;
-		height:1.3rem;
-		//width:5rem;
+		//height:1.3rem;
+		width:7rem;
 		margin : 0 3rem 2rem 3rem;
 		padding : .1rem .1rem .1rem .1rem;
 		border-style: solid;
@@ -117,4 +121,37 @@ html, body{
 .hid{
 		transform:scale(0);
 }
+.clearfix{
+		clear : both;
+}
+.item-icon{
+		display : block;
+		width:5rem;
+		height:5rem;
+}
+.item-title{
+		width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+}
+.right-menu{
+		//width: 10rem;
+		position: absolute;
+		background-color: rgb(220,220,220);
+		box-shadow: 0 0 3rem 0 rgba(0,0,0,.2);
+		font-size: 1.5rem;
+		text-align: center;
 
+}
+.right-menu-list{
+		list-style: none;
+		padding: 0;
+		margin: .3rem 1rem .3rem 1rem;
+}
+.right-menu-list>li{
+		padding: 0 .1rem .1rem 0;
+}
+.right-menu-list>li:hover{
+		background-color: yellow;
+}

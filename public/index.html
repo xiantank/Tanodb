@@ -12,7 +12,10 @@ Data Engineering project 1 - odb
 var dragSrcEl = null;
 var MAXFILESIZE = 512 * 1024 * 1024;
 var db = "db";
-var currentDir = 0;
+var currentDir = [0];
+var imglist = {unknown : "img/question_mark.png" , dir : "img/directory.png"};
+var rightMenu;
+imglist.png = imglist.jpg = imglist.gif = imglist.bmp = "img/photo.png";
 function generalList( objs ){
 		console.log(objs);
 		var fileList = document.getElementById("fileList");
@@ -24,27 +27,43 @@ function generalList( objs ){
 
 		for(var i in objs){
 				var list = document.createElement('div');
+				list.value = objs[i];
 				list.setAttribute("id",objs[i].rid);
 				list.setAttribute("class","item-list");
+				list.setAttribute("title",list.value.name);
 				list.setAttribute("draggable","true");
+				var img = document.createElement("img");
+				img.setAttribute("class","item-icon clearfix");
+				img.setAttribute("src", imglist[list.value.type] || imglist.unknown);
+				list.appendChild(img);
 				var filename = document.createElement("span");
-				filename.setAttribute("class","flow-left");
+				filename.setAttribute("class","flow-left item-title");
 				filename.innerHTML=objs[i].name;
 				list.appendChild(filename);
-				if(objs[i].size){
+/*				if(objs[i].size){
 						var filesize = document.createElement("span");
 						filesize.setAttribute("class","flow-right");
 						filesize.innerHTML=objs[i].size;
 						list.appendChild(filesize);
-				}
-				list.value = objs[i];
+				}*/
 				fileList.appendChild(list);
 		}
 		var lists = document.querySelectorAll('.item-list');
 		[].forEach.call(lists, function(list) {
 						list.addEventListener('dragstart', handleDragStart, false);
 						list.addEventListener('dragend', handleDragEnd, false);
-						list.addEventListener('dblclick', downloadFile, false);
+						list.addEventListener('dblclick', dblclickItem, false);
+						list.addEventListener('contextmenu', itemRightClick, false);
+						list.addEventListener('click', function(){
+								if(rightMenu){
+										rightMenu.parentNode.removeChild(rightMenu);
+										rightMenu=null;
+								}
+						}, false);
+						/*list.addEventListener('mouseenter', function(e){
+								this.title = "abc\nbbc";
+								console.log("hi");
+						}, false);*/
 						//list.addEventListener('dragenter', handleDragEnter, false);
 						//list.addEventListener('dragover', handleDragOver, false);
 						//list.addEventListener('dragleave', handleDragLeave, false);
@@ -64,8 +83,60 @@ function generalList( objs ){
 		fileUpload.addEventListener('dragleave', handleDragLeave, false);
 
 }
+function itemRightClick(e){
+		if(rightMenu){
+				rightMenu.parentNode.removeChild(rightMenu);
+				rightMenu=null;
+		}
+		e.preventDefault();
+		console.log(e.clientX,e.clientY);
+		var posx = e.clientX , posy = e.pageY;
+		var menu = document.createElement("div");
+		
+		var menu_ul = document.createElement("ul");
+		menu_ul.setAttribute("class","right-menu-list");
+		/*
+		var menu_edit = document.createElement("li");
+		menu_edit.innerHTML = "edit";
+		menu_ul.appendChild(menu_edit);
+		
+		var menu_move = document.createElement("li");
+		menu_move.innerHTML = "move";
+		menu_ul.appendChild(menu_move);
+		
+		var menu_copy = document.createElement("li");
+		menu_copy.innerHTML = "copy";
+		menu_ul.appendChild(menu_copy);
+		*/
+		var menu_list = 	["move" , "copy" , "edit" ];
+		var menu_action =	[ menu_move , menu_copy , menu_edit];
+		for(var i=0;i<menu_list.length ; i++){
+				var menu_item = document.createElement("li");
+				menu_item.innerHTML = menu_list[i];
+				menu_item.addEventListener('click', menu_action[i] , false);
+				menu_ul.appendChild(menu_item);
+		}
+		
+		menu.appendChild(menu_ul);
+		
+		document.querySelectorAll('body').item(0).appendChild(menu);
+		menu.setAttribute("class","right-menu");
+		//menu.innerHTML = 'Mouse position is: X='+posx+' Y='+posy;
+		menu.style.left = mouseX(e)+"px";
+		menu.style.top = mouseY(e)+"px";
+		rightMenu=menu;
+		rightMenu.value = this.value;
+		return false;
+}
+function menu_copy(e){
+}
+function menu_edit(e){
+}
+function menu_move(e){
+		console.log(rightMenu.value.rid);
+}
 function handleDragStart(e) {
-		  this.style.opacity = '0.3';
+		this.style.opacity = '0.3';
 		  console.log("start: "+this.firstChild.textContent);
 		  dragSrcEl = this;
 		  e.dataTransfer.effectAllowed = 'move';
@@ -130,7 +201,7 @@ function upload(files,i){
 		var formData = new FormData();
 				formData.append('file', files[i]);
 				var xhr = new XMLHttpRequest();
-				xhr.open('POST', "/odb/" + db+"/" + currentDir  +"/put/"+files[i].name);
+				xhr.open('POST', "/odb/" + db+"/" + currentDir[currentDir.length-1]  +"/put/"+files[i].name);
 				xhr.onload = function () {
 						if (xhr.status === 200) {
 								console.log('all done: ' + xhr.status);
@@ -144,7 +215,7 @@ function upload(files,i){
 								upload(files,i);
 								var tmp = xhr.responseText;
 								message(tmp);
-								showList();
+								showList(currentDir[currentDir.length-1]);
 						}
 				};
 				xhr.send(formData);
@@ -191,8 +262,8 @@ function deleteDrop(e) {
 
 		return false;
 }
-function showList(){
-		url="/odb/db/list/"+currentDir;
+function showList(dirId){
+		url="/odb/db/list/"+dirId;
 		$.ajax({
 				url: url,
 				type:"POST",
@@ -200,6 +271,7 @@ function showList(){
 				console.log("sucess:"+msg);
 				try{
 				generalList( JSON.parse(msg).children );
+				changeDir(dirId);
 				}catch(e){
 				  console.log(e);
 				  return;
@@ -211,7 +283,12 @@ function showList(){
 					});
 
 }
-
+function changeDir(dirId){
+		var index = currentDir.indexOf(dirId);
+		if( index > 0){//should not remove root
+				currentDir = currentDir.splice(index +1 , currentDir.length);
+		}
+}
 function search(){
 		//TODO
 		var search = document.getElementById('search').value;
@@ -246,8 +323,14 @@ function search(){
 		return false;
 
 }
-function downloadFile(e) {
-		download(this.id,this.value.name);
+function dblclickItem(e) {
+
+		if(this.value.type == "dir"){
+				showList(this.value.rid);
+		}
+		else{
+				download(this.id,this.value.name);
+		}
 }
 function download(rid,filename){
 		window.location.href="/odb/"+db+"/get/"+ rid + "/" +filename;
@@ -266,10 +349,57 @@ function message(msg){
 
 
 }
+function mkdir(){
+		var dirName = prompt("Directory Name","");
+		if(dirName){
+				url="/odb/"+db +"/" + currentDir[currentDir.length-1] + "/createDir/"+dirName;
+				$.ajax({
+						url: url,
+						type:"POST",
+						success: function(msg){
+							console.log("sucess:"+msg);
+							try{
+								showList(currentDir[currentDir.length-1]);
+							}catch(e){
+								console.log(e);
+							return;
+							}
+						},
+						error: function(msg){
+							console.log("[error]"+msg);
+						}
+				});
+
+
+		}
+}
+function mouseX(evt) {
+		if (evt.pageX) {
+				return evt.pageX;
+		} else if (evt.clientX) {
+				return evt.clientX + (document.documentElement.scrollLeft ?
+								document.documentElement.scrollLeft :
+								document.body.scrollLeft);
+		} else {
+				return null;
+		}
+}
+
+function mouseY(evt) {
+		if (evt.pageY) {
+				return evt.pageY;
+		} else if (evt.clientY) {
+				return evt.clientY + (document.documentElement.scrollTop ?
+								document.documentElement.scrollTop :
+								document.body.scrollTop);
+		} else {
+				return null;
+		}
+}
 window.onresize = function(event) {
 		//var body = document.getElementsByTagName("body");
 		//body[0].style.width= screen.width+'px';
-		body[0].style.width= window.innerWidth+'px';
+		body.style.width= window.innerWidth+'px';
 
 };
 </script>
@@ -278,14 +408,17 @@ window.onresize = function(event) {
 
 
 <div id="topbar" class="topbar">
-	<div id="fileUpload" class="fileUpload dropTarget flow-right">
+	<div id="createDir" class="flow-right topbar-img">
+		<img class="fit-image" src="./img/createDir.png" />
+	</div>
+	<div id="fileUpload" class="fileUpload dropTarget flow-right topbar-img">
 		<img class="fit-image" src="./img/add.png" />
 	</div>
 	<span id="searchbar" class="mid searchDiv">
 			<input type="input" id="search">
 			<button onclick="search()" >search</button>
 	</span>
-	<div id="trashcan" class="trashcan dropTarget flow-right">
+	<div id="trashcan" class="trashcan dropTarget topbar-img flow-right">
 		<img class="fit-image" src="./img/trashcan.png" />
 	</div>
 </div>
@@ -294,14 +427,22 @@ window.onresize = function(event) {
 <div id="message" class="message hid">
 </div>
 <script>
-showList();
-body = document.getElementsByTagName("body");
-body[0].style.width= window.innerWidth+'px';
+showList(currentDir[currentDir.length-1]);
+body = document.getElementsByTagName("body").item(0);
+body.addEventListener('click', function(){
+		if(rightMenu){
+				        rightMenu.parentNode.removeChild(rightMenu);
+				        rightMenu=null;
+		}
+}, false);
+body.style.width= window.innerWidth+'px';
 		var searchText = document.querySelectorAll('#search').item(0);
 		searchText.addEventListener('keyup', yo , false);
 		function yo(e){
 				console.log("yo");
 		}
+var createDir = document.querySelectorAll('#createDir').item(0);
+createDir.addEventListener('click', mkdir , false);
 </script>
 </body>
 </html>
