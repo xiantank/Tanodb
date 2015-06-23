@@ -890,9 +890,9 @@ void createDir(long int rid , long int parrent , char *filename , char *describe
 		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
 		lseek(fd,DB.rec_offset,SEEK_SET);
 		sprintf(record , 
-		"@rid:%ld\n@_deleteFlag:%s\n@type:%s\n@name:%s\n@parrent:%ld\n@ctime:%ld\n@mtime:%ld\n@desc:%s\n@children:\n@_end:@\n",
+		"@rid:%ld\n@_deleteFlag:%s\n@type:%s\n@name:%s\n@parrent:%ld\n@ctime:%ld\n@mtime:%ld\n@desc:%s\n@children:%ld\n@_end:@\n",
 		rid , "0",  fileType , filename , parrent 
-		, now , now , describe);
+		, now , now , describe , parrent);
 		//TODO verify ()
 		write(fd , record ,size );
 
