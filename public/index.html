@@ -108,8 +108,8 @@ function itemRightClick(e){
 		menu_copy.innerHTML = "copy";
 		menu_ul.appendChild(menu_copy);
 		*/
-		var menu_list = 	["move" , "copy" , "edit" ];
-		var menu_action =	[ menu_move , menu_copy , menu_edit];
+		var menu_list = 	["move" , "copy" , "edit" , "info" ];
+		var menu_action =	[ menu_move , menu_copy , menu_edit , menu_info];
 		for(var i=0;i<menu_list.length ; i++){
 				var menu_item = document.createElement("li");
 				menu_item.innerHTML = menu_list[i];
@@ -134,6 +134,29 @@ function menu_edit(e){
 }
 function menu_move(e){
 		console.log(rightMenu.value.rid);
+		var dirName = prompt("Directory Name","");
+		var url="/odb/"+db+"/"+rightMenu.value.rid+"/changeDir/"+ currentDir + "/" + dirName;//TODO other method to get rid,now input by user;
+		$.ajax({
+				url: url,
+				type:"GET",
+				success: function(msg){
+					console.log("sucess:"+msg);
+					try{
+						showList( dirName );
+						changeDir(dirName);
+					}catch(e){
+						console.log(e);
+						return;
+					}
+				},
+				error: function(msg){
+					console.log("[error]"+msg);
+					}
+					});
+
+}
+function menu_info(e){
+		console.log(rightMenu.value);
 }
 function handleDragStart(e) {
 		this.style.opacity = '0.3';
@@ -287,6 +310,9 @@ function changeDir(dirId){
 		var index = currentDir.indexOf(dirId);
 		if( index > 0){//should not remove root
 				currentDir = currentDir.splice(index +1 , currentDir.length);
+		}
+		else{
+				currentDir.push(dirId);
 		}
 }
 function search(){
