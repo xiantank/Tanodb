@@ -155,3 +155,42 @@ html, body{
 .right-menu-list>li:hover{
 		background-color: yellow;
 }
+.fullscreen-container{
+		display: flex;
+		position : absolute;
+		left: 0;
+		top: 0;
+		align-items: center;
+		justify-content: center;
+		height : 100vh;
+		width: 100vw;
+		background-color: rgba(0 , 0 , 0 , 0.5);
+}
+#edit-menu{
+		width: 25rem;
+		background-color: #eee;
+
+}
+#edit-title{
+		font-size: 2.5rem;
+		display: flex;
+		width: 70%;
+		//align-items: center;
+		justify-content: center;
+		text-align: center;
+}
+.edit-column{
+		box-sizing: border-box;
+		display: flex;
+		margin : .2rem .5rem;
+		font-size: 1.5rem;
+}
+.col-unit{
+		flex:1;
+}
+.inline-text{
+		background: inherit;
+		border : 0;
+		font-size: 1.5rem;
+
+};

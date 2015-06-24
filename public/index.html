@@ -131,6 +131,43 @@ function itemRightClick(e){
 function menu_copy(e){
 }
 function menu_edit(e){
+		var obj = rightMenu.value;
+		var date = new Date(rightMenu.value.ctime*1000);
+		var ctime = date.getFullYear()+'/'+(date.getMonth()+1)+'/'+date.getDate();
+		var container = document.createElement('div');
+		container.setAttribute("class","fullscreen-container");
+		var menu = document.createElement('div');
+		menu.setAttribute("id","edit-menu");
+		//menu.setAttribute("class","item-list");
+		var title = document.createElement('div');
+		title.setAttribute("id","edit-name");
+		var input = document.createElement('input');
+		input.setAttribute("id","edit-title");
+		input.setAttribute("class","inline-text");
+		input.setAttribute("value", obj.name);
+		title.appendChild(input);
+		menu.appendChild(title);
+		var col_list = 	["type" , "size" , "ctime" , "mtime" ];
+		for(var i=0;i<col_list.length ; i++){
+				if( !obj[col_list[i]])continue;
+				var column = document.createElement('div');
+				column.setAttribute("id","edit_"+col_list[i]);
+				column.setAttribute("class","edit-column");
+				var col_item1 = document.createElement('span');
+				col_item1.setAttribute("class","col-unit");
+				col_item1.innerHTML = col_list[i];
+				var col_item2 = document.createElement('span');
+				col_item2.setAttribute("class","col-unit");
+				col_item2.innerHTML = obj[col_list[i]];
+				column.appendChild(col_item1);
+				column.appendChild(col_item2);
+
+				menu.appendChild(column);
+		}
+
+		container.appendChild(menu);
+		document.querySelectorAll('body').item(0).appendChild(container);
+		return;
 }
 function menu_move(e){
 		console.log(rightMenu.value.rid);
