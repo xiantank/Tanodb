@@ -125,6 +125,7 @@ void saveRecordIndex(RecordIndex * recIndex);
  * record function
  */
 void parseCmdToRec(char *optarg,long int *rid,long int *parrent,char *name,char *describe);
+void parseToColumn(char *optarg , long int *rid , char *key , char *value  );
 void putRecord(long int recordId ,char *filename , long int parrent ,unsigned char *MD5 , char *describe , long int rec_size , long int obj_index);
 /*after putRecord : must saveDB()*/
 void writeRecord(long int recordId , char *record , long int rec_size , long int rec_offset);
@@ -199,6 +200,8 @@ int main(int argc , char *argv[] , char *envp[])
 		long int bytes=0,index=0,n,i ;
 		long int parrent=0 , rid;
 		char name[512],describe[1024];
+		char key[512] , value[1024];
+
 		unsigned char md5out[MD5_DIGEST_LENGTH];
 		int fd;
 		int argFlag=0;//fsnbopid ;  8bits!;  76543210 ;128  64  32  16  8  4  2  1
@@ -221,6 +224,7 @@ int main(int argc , char *argv[] , char *envp[])
 				{ "delete" , 1 , NULL , 'd'},
 				{ "file-put" , 1 , NULL , 'F'},
 				{ "file-get" , 1 , NULL , 'G'},
+				{ "recordUpdate" , 1 , NULL , 'u'},
 				{ "list" , 0 , NULL , 'L'},
 				{ "search" , 1 , NULL , 'S'},
 				{ "createDir" , 1 , NULL , 'C'},
@@ -237,7 +241,7 @@ int main(int argc , char *argv[] , char *envp[])
 
 		while((c = getopt_long (argc, argv, short_options, long_options, NULL)) != -1){
 				switch(c){
-						case 'u' : 
+						/*case 'u' : 
 							DB.FILENUM = atoi(optarg);
 							argFlag = argFlag | ARG_DBFILENUM;
 							break;
@@ -261,6 +265,12 @@ int main(int argc , char *argv[] , char *envp[])
 							argFlag = argFlag | ARG_FILENAME;
 							sprintf(dbini,"db%sfn.inx",DB.PATH);
 							getVariable( (void *)fileIndex, sizeof(FileIndex) , DB.BUCKETNUM , dbini);
+							break;
+						*/
+						case 'u':
+								parseToColumn(optarg , &rid , key , value  );
+								updateRecord( rid , key , value );
+							
 							break;
 						case 'p' : 
 							strcpy(DB.PATH,optarg);
@@ -1427,6 +1437,36 @@ void offsetTobytes(unsigned char *c_offset , long int offset, int length){
 				c_offset[i] = offset & 0xff;
 				offset = offset >> 8;
 		}
+}
+void parseToColumn(char *optarg , long int *rid , char *key , char *value  ){
+		char *rptr , *kptr , *vptr , *ptr;
+		ptr = optarg;
+		rptr = ptr;
+
+		while( isdigit(*ptr) ){
+				ptr++;
+		}
+		*(ptr++) = '\0';
+		*rid = atol(rptr);
+
+		kptr = ptr ;
+
+		while(*ptr && *ptr != ';'){
+				ptr++;
+		}
+		*(ptr++) = '\0';
+		strcpy(key,kptr);
+
+		vptr = ptr ;
+		while(*ptr && *ptr != ';'){
+				ptr++;
+		}
+		*(ptr++) = '\0';
+
+		strcpy(value,vptr);
+		return ; 
+
+
 }
 void parseCmdToRec(char *optarg,long int *rid,long int *parrent,char *name,char *describe){
 		char *rptr,*pptr,*nptr,*dptr,*ptr;
