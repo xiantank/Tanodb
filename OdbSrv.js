@@ -60,6 +60,36 @@ app.use(express.static(__dirname + '/public'));
 
 		      res.sendFile("index.html",options);
 });*/
+app.get('/odb/:db/:rid/changeDir/:from/:to',function(req,res){
+		var para = [];
+		if(req.params.from && req.params.to && req.params.rid){
+				var recordInfo = req.params.rid +";"+ req.params.from +";"+ req.params.to ;
+				console.log(JSON.stringify(recordInfo));
+				para = ["-p" , req.params.db , "-U" , recordInfo ];
+
+				var odb = spawn('./odb' , para);
+				var str = '';
+				var erstr='';
+				odb.stdout.pipe(process.stdout);
+				odb.stderr.pipe(process.stdout);
+				odb.stdout.on('data', function (data) {
+						str += data;
+						});
+
+				odb.stderr.on('data', function (data) {
+								erstr += data;
+								res.write(data);
+								});
+				odb.on('exit', function (code) {
+								res.write(str);
+								res.end("directory change success.");
+								});
+				return;
+		
+		}
+		res.end("Directory change FAIL.");
+});
+
 app.get('/odb/:db/:rid/update/:key/:value',function(req,res){
 		var para = [];
 		if(req.params.key && req.params.value && req.params.rid){
@@ -81,18 +111,18 @@ app.get('/odb/:db/:rid/update/:key/:value',function(req,res){
 								});
 				odb.on('exit', function (code) {
 								res.write(str);
-								res.end("directory create success.");
+								res.end("record update success.");
 								});
 				return;
 		
 		}
-		res.end("Directory create FAIL.");
+		res.end("record update FAIL.");
 });
 
-app.post('/odb/:db/:parrent/createDir/:filename',function(req,res){
+app.post('/odb/:db/:parent/createDir/:filename',function(req,res){
 		var para = [];
-		if(req.params.filename && req.params.parrent){
-				var recordInfo = rid++ +";"+ req.params.parrent +";"+ req.params.filename +";"+ req.params.filename;
+		if(req.params.filename && req.params.parent){
+				var recordInfo = rid++ +";"+ req.params.parent +";"+ req.params.filename +";"+ req.params.filename;
 				para = ["-p" , req.params.db , "-I" , recordInfo , "-C" ];
 
 				var odb = spawn('./odb' , para);
@@ -118,7 +148,7 @@ app.post('/odb/:db/:parrent/createDir/:filename',function(req,res){
 		res.end("Directory create FAIL.");
 });
 
-app.post('/odb/:db/:parrent/put/:filename',function(req,res){
+app.post('/odb/:db/:parent/put/:filename',function(req,res){
 		var wrong = function(errMessage){
 				var resStr = errMessage || '';
 				res.write(resStr);
@@ -128,9 +158,10 @@ app.post('/odb/:db/:parrent/put/:filename',function(req,res){
 		if(req.files && req.files.file && req.files.file.truncated){
 				res.write("over file size limit!");
 				res.end();
+				return;
 		}
 		if(req.files && req.files.file){
-				var recordInfo = rid++ +";"+ req.params.parrent +";"+ req.params.filename +";"+ req.params.filename;
+				var recordInfo = rid++ +";"+ req.params.parent +";"+ req.params.filename +";"+ req.params.filename;
 				para = ["-p" , req.params.db , "-I" , recordInfo , "--file-put" , req.files.file.path ];
 
 				var odb = spawn('./odb' , para);
