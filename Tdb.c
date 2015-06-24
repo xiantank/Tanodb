@@ -116,7 +116,7 @@ size_t receiveObj(int fd,unsigned char * obj , long int bufferSize);
 long int getIndex(unsigned char *md5 , Index * indexTable);
 long int getIndexbyName(char *filename , FileIndex *fileIndex , int isFindex);
 long int getItem( Index *indexTable , FileIndex *fileIndex,char *ridString , unsigned char *md5out ,  int byRid);
-long int putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, long int size, int byName,RecordIndex *recIndex, long int rid , long int rec_parrent , char *describe , char *name);
+long int putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, long int size, int byName,RecordIndex *recIndex, long int rid , long int rec_parent , char *describe , char *name);
 void saveDB();
 void saveIndex(Index *indexTable);//TODO only save modify index
 void saveFileIndex(FileIndex *fileIndex);
@@ -124,9 +124,9 @@ void saveRecordIndex(RecordIndex * recIndex);
 /*
  * record function
  */
-void parseCmdToRec(char *optarg,long int *rid,long int *parrent,char *name,char *describe);
+void parseCmdToRec(char *optarg,long int *rid,long int *parent,char *name,char *describe);
 void parseToColumn(char *optarg , long int *rid , char *key , char *value  );
-void putRecord(long int recordId ,char *filename , long int parrent ,unsigned char *MD5 , char *describe , long int rec_size , long int obj_index);
+void putRecord(long int recordId ,char *filename , long int parent ,unsigned char *MD5 , char *describe , long int rec_size , long int obj_index);
 /*after putRecord : must saveDB()*/
 void writeRecord(long int recordId , char *record , long int rec_size , long int rec_offset);
 /*
@@ -150,8 +150,8 @@ RecordIndex getRecIndex(long int rid);
 long int updateRecIndex(long int rid , long int rec_offset , long int rec_size , unsigned char indexFlag );
 long int deleteRecIndex(long int rid);
 /*dirRec function*/
-void createDir(long int rid , long int parrent , char *filename , char *describe);
-void addToDir(long int rid , long int parrent);
+void createDir(long int rid , long int parent , char *filename , char *describe);
+void addToDir(long int rid , long int parent);
 void readDir(long int Drid);
 void deleteDir(long int Drid);
 char *traverseChildren(char *childrenString , char (*callback)(long int));
@@ -160,7 +160,7 @@ void printChildJson(long int childRid);
 //append
 /*
 type:		get by filename						in the func.
-parrent:	receive from client
+parent:	receive from client
 ctime:		use something like :Date().now		in the func.
 tags:		default no tag, add when update
 recordId:	get from node.js
@@ -196,9 +196,9 @@ int main(int argc , char *argv[] , char *envp[])
 		
 		int c=0;
 		char dbini[100];
-		char* const short_options = "b:Cd:D:f:F:G:iI:LM:n:o:p:r:R:s:T:u:";
+		char* const short_options = "b:Cd:D:f:F:G:iI:LM:n:o:p:r:R:s:T:u:U:";
 		long int bytes=0,index=0,n,i ;
-		long int parrent=0 , rid;
+		long int parent=0 , rid;
 		char name[512],describe[1024];
 		char key[512] , value[1024];
 
@@ -218,7 +218,7 @@ int main(int argc , char *argv[] , char *envp[])
 				//{ "maxobjsize" , 1 , NULL , 'o' },
 				{ "path" , 1 , NULL , 'p' },
 				//{ "filename" , 1 , NULL , 'f' },
-				//{ "parrent" , 1 , NULL , 'r'},
+				//{ "parent" , 1 , NULL , 'r'},
 				{ "md5GET" , 1 , NULL , 'M'},
 				{ "recordInfo" , 1 , NULL , 'I'},
 				{ "delete" , 1 , NULL , 'd'},
@@ -229,6 +229,7 @@ int main(int argc , char *argv[] , char *envp[])
 				{ "search" , 1 , NULL , 'S'},
 				{ "createDir" , 1 , NULL , 'C'},
 				{ "readDir" , 1 , NULL , 'R'},
+				{ "updateDir" , 1 , NULL , 'U'},
 				{ "deleteDir" , 1 , NULL , 'D'},
 				{ "test" , 1 , NULL , 'T'},
 				{ "recordGet" , 1 , NULL , 'r'},
@@ -314,9 +315,9 @@ int main(int argc , char *argv[] , char *envp[])
 							argFlag = argFlag | ARG_INIT;
 							break;
 						case 'C' : 
-							//putRecord( rid , name , rec_parrent , md5out , describe , size , index);
-							//parseCmdToRec(optarg,&rid,&parrent,name,describe);
-							createDir(rid , parrent , name , describe);
+							//putRecord( rid , name , rec_parent , md5out , describe , size , index);
+							//parseCmdToRec(optarg,&rid,&parent,name,describe);
+							createDir(rid , parent , name , describe);
 							
 							break;
 						case 'R':
@@ -367,7 +368,13 @@ int main(int argc , char *argv[] , char *envp[])
 //							write(STDOUT_FILENO , buffer , indexTable[index].size );
 							exit(0);
 						case 'I':
-							parseCmdToRec(optarg,&rid,&parrent,name,describe);
+							parseCmdToRec(optarg,&rid,&parent,name,describe);
+							break;
+						case 'U':
+							parseToColumn(optarg , &rid , key , value  );//here key is curDir.rid.toString
+							updateRecord( rid , "parent" , value );
+							addToDir( rid , atol(value) );
+							deleteFromParrent(rid , atol(key));
 							break;
 						case 'F' : 
 							fd = open( optarg , O_RDONLY);
@@ -382,8 +389,8 @@ int main(int argc , char *argv[] , char *envp[])
 									fprintf(stderr , "file size limit is %d" , DB.OBJSIZE);
 									exit(5);
 							}*/
-							index = putItem(indexTable , fileIndex , optarg , fd , bytes , true , recIndex , rid , parrent , describe , name);
-//long int putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, long int size, int byName,RecordIndex recIndex, long int rid , char *rec_parrent , char *describe);
+							index = putItem(indexTable , fileIndex , optarg , fd , bytes , true , recIndex , rid , parent , describe , name);
+//long int putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, long int size, int byName,RecordIndex recIndex, long int rid , char *rec_parent , char *describe);
 							if(index == -1){
 									fprintf(stderr , "filename exist\n");
 									exit(2);
@@ -881,7 +888,7 @@ long int getItem( Index *indexTable , FileIndex *fileIndex , char *ridString , u
 		return index;
 
 }
-void createDir(long int rid , long int parrent , char *filename , char *describe){
+void createDir(long int rid , long int parent , char *filename , char *describe){
 		int fd=-1;
 		char recFileName[100];
 		char *record ;
@@ -900,38 +907,38 @@ void createDir(long int rid , long int parrent , char *filename , char *describe
 		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
 		lseek(fd,DB.rec_offset,SEEK_SET);
 		sprintf(record , 
-		"@rid:%ld\n@_deleteFlag:%s\n@type:%s\n@name:%s\n@parrent:%ld\n@ctime:%ld\n@mtime:%ld\n@desc:%s\n@children:%ld\n@_end:@\n",
-		rid , "0",  fileType , filename , parrent 
-		, now , now , describe , parrent);
+		"@rid:%ld\n@_deleteFlag:%s\n@type:%s\n@name:%s\n@parent:%ld\n@ctime:%ld\n@mtime:%ld\n@desc:%s\n@children:%ld\n@_end:@\n",
+		rid , "0",  fileType , filename , parent 
+		, now , now , describe , parent);
 		//TODO verify ()
 		write(fd , record ,size );
 
 
 		updateRecIndex( rid , DB.rec_offset , size , INDEX_EXIST);
 		DB.rec_offset+= size;
-		addToDir(rid , parrent);
+		addToDir(rid , parent);
 		/*TODO addToDir(){
-				string = getRecColumn("children" , parrent);
+				string = getRecColumn("children" , parent);
 				if ( string ){//already has children
 						string += ','+rid;
 				}else{
-						updateColumn(parrent , children , <rid>);
+						updateColumn(parent , children , <rid>);
 				}
 		}
 		*/
 		close(fd);
 		saveDB();
 }
-void addToDir(long int rid , long int parrent){
+void addToDir(long int rid , long int parent){
 		char *childrenBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
-		getRecColumn( parrent , "children" , childrenBuf) ;
+		getRecColumn( parent , "children" , childrenBuf) ;
 		if( childrenBuf[0] == '\0' ){//no child
 				sprintf(childrenBuf , "%ld" , rid);
 		}
 		else{//already has some children
 				sprintf(childrenBuf , "%s,%ld" , childrenBuf , rid);
 		}
-		updateRecord( parrent , "children" , childrenBuf );
+		updateRecord( parent , "children" , childrenBuf );
 		free(childrenBuf);
 }
 void deleteDir(long int Drid){
@@ -997,7 +1004,7 @@ void deleteFromParrent(long int rid , long int Drid){
 				return ;
 		}
 		if( childrenBuf[0] == '\0' ){//something error
-				fprintf(stderr,"no child!delete rid(%ld) in parrent(%ld)\n" , rid ,Drid );
+				fprintf(stderr,"no child!delete rid(%ld) in parent(%ld)\n" , rid ,Drid );
 				exit(404);
 		}
 		else{
@@ -1013,15 +1020,18 @@ void deleteFromParrent(long int rid , long int Drid){
 						updateRecord( Drid  , "children" , childrenBuf);
 				}else if( sprintf(target , ",%ld," , rid) && (dptr=strstr(childrenBuf , target ) ) ){
 						sptr = dptr+strlen(target);
+						dptr++;//skip ','
 						while(*sptr){
 								*(dptr++) = *(sptr++);
 						}
+						*dptr ='\0';
 						updateRecord( Drid  , "children" , childrenBuf);
 				}else if( sprintf(target , ",%ld" , rid) && ( dptr = strstr(childrenBuf , target ) ) ){
 						*dptr = '\0';
 						updateRecord( Drid  , "children" , childrenBuf);
 				}
 		}
+		printf("%s",childrenBuf);
 		free(childrenBuf);
 
 
@@ -1102,9 +1112,9 @@ char *gaisRecToJson(char *gaisRec , char *buf){
 		sprintf(buf , "%s}",buf);
 		return buf;
 }
-void putRecord(long int recordId , char *filename , long int parrent ,unsigned char *MD5 , char *describe , long int rec_size , long int obj_index){
-		fprintf(stderr , "rid:%ld\nfilename: %s\nparrent:%ld\ndescribe: %s\n",
-						recordId,filename,parrent,describe);
+void putRecord(long int recordId , char *filename , long int parent ,unsigned char *MD5 , char *describe , long int rec_size , long int obj_index){
+		fprintf(stderr , "rid:%ld\nfilename: %s\nparent:%ld\ndescribe: %s\n",
+						recordId,filename,parent,describe);
 		int fd=-1;
 		char recFileName[100];
 		char *record , *ptr;
@@ -1140,8 +1150,8 @@ void putRecord(long int recordId , char *filename , long int parrent ,unsigned c
 		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
 		lseek(fd,DB.rec_offset,SEEK_SET);
 		sprintf(record , 
-		"@rid:%ld\n@_deleteFlag:%s\n@obj_index:%ld\n@type:%s\n@name:%s\n@parrent:%ld\n@ctime:%ld\n@size:%ld\n@mtime:%ld\n@MD5:%s\n@desc:%s\n@_end:@\n",
-		recordId , "0", obj_index , fileType , filename , parrent 
+		"@rid:%ld\n@_deleteFlag:%s\n@obj_index:%ld\n@type:%s\n@name:%s\n@parent:%ld\n@ctime:%ld\n@size:%ld\n@mtime:%ld\n@MD5:%s\n@desc:%s\n@_end:@\n",
+		recordId , "0", obj_index , fileType , filename , parent 
 		, now , rec_size , now , md5ToHex(MD5,md5Hex), describe);
 		//TODO verify ()
 		write(fd , record ,size );
@@ -1149,13 +1159,13 @@ void putRecord(long int recordId , char *filename , long int parrent ,unsigned c
 
 		updateRecIndex(recordId , DB.rec_offset , size , INDEX_EXIST);
 		DB.rec_offset+= size;
-		addToDir(recordId , parrent);
+		addToDir(recordId , parent);
 		/*TODO addToDir(){
-				string = getColumn("children" , parrent);
+				string = getColumn("children" , parent);
 				if ( string ){//already has children
 						string += ','+rid;
 				}else{
-						updateColumn(parrent , children , <rid>);
+						updateColumn(parent , children , <rid>);
 				}
 		}
 		*/
@@ -1292,11 +1302,11 @@ void writeRecord(long int recordId , char *record , long int rec_size , long int
 		return ;
 }
 void deleteRecord(long int rid){
-		char parrentBuf[50];
-		getRecColumn( rid , "parrent" , parrentBuf);
+		char parentBuf[50];
+		getRecColumn( rid , "parent" , parentBuf);
 		updateRecord( rid  , "_deleteFlag" , "1");
 		deleteRecIndex(rid);
-		deleteFromParrent(rid , atol(parrentBuf));
+		deleteFromParrent(rid , atol(parentBuf));
 		//TODO deleteReal Record  //maybe @_deleteFlag set 1
 
 }
@@ -1348,7 +1358,7 @@ long int deleteRecIndex(long int rid){
 		return 0;//TODO
 
 }
-long int putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, long int size, int byName,RecordIndex *recIndex, long int rid , long int rec_parrent , char *describe , char *name){
+long int putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, long int size, int byName,RecordIndex *recIndex, long int rid , long int rec_parent , char *describe , char *name){
 		unsigned char md5out[MD5_DIGEST_LENGTH];
 		long int index = -1 , startOffset , bytes;
 		md5(fd , md5out , size);
@@ -1365,7 +1375,7 @@ long int putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd,
 				indexTable[index].ref++;
 				saveIndex(indexTable);
 				/*put to RDB*/
-				putRecord( rid , name , rec_parrent , md5out , describe , size , index);
+				putRecord( rid , name , rec_parent , md5out , describe , size , index);
 				/*end put to RDB*/
 
 				/*
@@ -1381,7 +1391,7 @@ long int putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd,
 		bytes = putObject( fd , size , DB.PATH , &DB.curFid , &DB.offset);
 		index = updateIndex(indexTable , fileIndex , filename , md5out , DB.curFid , startOffset , size);
 		/*put to RDB*/
-		putRecord( rid , name , rec_parrent , md5out , describe , size , index);
+		putRecord( rid , name , rec_parent , md5out , describe , size , index);
 		/*end put to RDB*/
 		if(bytes != indexTable[index].size){//TODO error handle
 		}
@@ -1468,7 +1478,7 @@ void parseToColumn(char *optarg , long int *rid , char *key , char *value  ){
 
 
 }
-void parseCmdToRec(char *optarg,long int *rid,long int *parrent,char *name,char *describe){
+void parseCmdToRec(char *optarg,long int *rid,long int *parent,char *name,char *describe){
 		char *rptr,*pptr,*nptr,*dptr,*ptr;
 		
 		ptr = optarg;
@@ -1498,7 +1508,7 @@ void parseCmdToRec(char *optarg,long int *rid,long int *parrent,char *name,char 
 
 		
 		*rid = (long int) atof(rptr);
-		*parrent = (long int) atof(pptr);
+		*parent = (long int) atof(pptr);
 		strcpy(name,nptr);
 		strcpy(describe,dptr);
 
