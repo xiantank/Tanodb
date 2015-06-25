@@ -9,5 +9,5 @@ bigba
 message.png
 node_modules/
 odb
-test.sh
 tmp.png
+test*
