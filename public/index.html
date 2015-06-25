@@ -131,11 +131,15 @@ function itemRightClick(e){
 function menu_copy(e){
 }
 function menu_edit(e){
-		var obj = rightMenu.value;
+		var obj = rightMenu.value;//??? why can get value? TODO
 		var date = new Date(rightMenu.value.ctime*1000);
 		var ctime = date.getFullYear()+'/'+(date.getMonth()+1)+'/'+date.getDate();
 		var container = document.createElement('div');
 		container.setAttribute("class","fullscreen-container");
+		container.addEventListener("click",function(e){
+				//console.log(this.parentNode);
+						this.parentNode.removeChild(this);
+		} , false);
 		var menu = document.createElement('div');
 		menu.setAttribute("id","edit-menu");
 		//menu.setAttribute("class","item-list");
@@ -147,7 +151,7 @@ function menu_edit(e){
 		input.setAttribute("value", obj.name);
 		title.appendChild(input);
 		menu.appendChild(title);
-		var col_list = 	["type" , "size" , "ctime" , "mtime" ];
+		var col_list = 	["type" , "size" , "ctime" , "mtime" , "desc"];
 		for(var i=0;i<col_list.length ; i++){
 				if( !obj[col_list[i]])continue;
 				var column = document.createElement('div');
@@ -156,8 +160,22 @@ function menu_edit(e){
 				var col_item1 = document.createElement('span');
 				col_item1.setAttribute("class","col-unit");
 				col_item1.innerHTML = col_list[i];
+				if(col_list[i] == "desc"){
+						var  edit_desc= document.createElement('input');
+						edit_desc.setAttribute("class","inline-text col-unit");
+						edit_desc.setAttribute("type","textarea");
+						edit_desc.setAttribute("id","edit_"+col_list[i]+"_value");
+						edit_desc.setAttribute("value",obj[col_list[i]]);
+						edit_desc.innerHTML = obj[col_list[i]];
+						column.appendChild(col_item1);
+						column.appendChild(edit_desc);
+
+						menu.appendChild(column);
+						continue;
+				}
 				var col_item2 = document.createElement('span');
 				col_item2.setAttribute("class","col-unit");
+				col_item2.setAttribute("id","edit_"+col_list[i]+"_value");
 				col_item2.innerHTML = obj[col_list[i]];
 				column.appendChild(col_item1);
 				column.appendChild(col_item2);

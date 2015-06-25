@@ -157,7 +157,7 @@ html, body{
 }
 .fullscreen-container{
 		display: flex;
-		position : absolute;
+		position : fixed;
 		left: 0;
 		top: 0;
 		align-items: center;
