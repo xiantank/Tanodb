@@ -108,8 +108,8 @@ function itemRightClick(e){
 		menu_copy.innerHTML = "copy";
 		menu_ul.appendChild(menu_copy);
 		*/
-		var menu_list = 	["move" , "copy" , "edit" , "info" ];
-		var menu_action =	[ menu_move , menu_copy , menu_edit , menu_info];
+		var menu_list = 	["move" , "copy" , "info" ];
+		var menu_action =	[ menu_move , menu_copy , menu_info];
 		for(var i=0;i<menu_list.length ; i++){
 				var menu_item = document.createElement("li");
 				menu_item.innerHTML = menu_list[i];
@@ -130,23 +130,62 @@ function itemRightClick(e){
 }
 function menu_copy(e){
 }
-function menu_edit(e){
-		var obj = rightMenu.value;//??? why can get value? TODO
-		var date = new Date(rightMenu.value.ctime*1000);
-		var ctime = date.getFullYear()+'/'+(date.getMonth()+1)+'/'+date.getDate();
+function menu_info(e){
+		var obj = rightMenu.value;
 		var container = document.createElement('div');
 		container.setAttribute("class","fullscreen-container");
 		container.addEventListener("click",function(e){
 				//console.log(this.parentNode);
-						this.parentNode.removeChild(this);
+				document.querySelectorAll('body').item(0).appendChild(container);
+				var name = document.querySelector("#info-title").value;
+				if(obj.name !== name){//TODO send ajax to update name and refresh list
+						var url = '/odb/'+db+'/'+obj.rid+'/update/'+"name"+'/'+name;
+						$.ajax({
+								url: url,
+								type:"GET",
+								success: function(msg){
+										console.log("sucess:"+msg);
+										try{
+												showList(currentDir[currentDir.length-1]);
+										}catch(e){
+												console.log(e);
+												return;
+										}
+									},
+								error: function(msg){
+										console.log("[error]"+msg);
+								}
+						});
+				}
+				var desc = document.querySelector("#info_desc_value").value;
+				if( obj.desc !== desc){//TODO send ajax to update name and refresh list
+						var url = '/odb/'+db+'/'+obj.rid+'/update/'+"desc"+'/'+desc;
+						$.ajax({
+								url: url,
+								type:"GET",
+								success: function(msg){
+										console.log("sucess:"+msg);
+										try{
+												showList(currentDir[currentDir.length-1]);
+										}catch(e){
+												console.log(e);
+												return;
+										}
+									},
+								error: function(msg){
+										console.log("[error]"+msg);
+								}
+						});
+				}
+				this.parentNode.removeChild(this);
 		} , false);
 		var menu = document.createElement('div');
-		menu.setAttribute("id","edit-menu");
+		menu.setAttribute("id","info-menu");
 		//menu.setAttribute("class","item-list");
 		var title = document.createElement('div');
-		title.setAttribute("id","edit-name");
+		title.setAttribute("id","info-name");
 		var input = document.createElement('input');
-		input.setAttribute("id","edit-title");
+		input.setAttribute("id","info-title");
 		input.setAttribute("class","inline-text");
 		input.setAttribute("value", obj.name);
 		title.appendChild(input);
@@ -155,34 +194,42 @@ function menu_edit(e){
 		for(var i=0;i<col_list.length ; i++){
 				if( !obj[col_list[i]])continue;
 				var column = document.createElement('div');
-				column.setAttribute("id","edit_"+col_list[i]);
-				column.setAttribute("class","edit-column");
+				column.setAttribute("id","info"+col_list[i]);
+				column.setAttribute("class","info-column");
 				var col_item1 = document.createElement('span');
 				col_item1.setAttribute("class","col-unit");
 				col_item1.innerHTML = col_list[i];
 				if(col_list[i] == "desc"){
-						var  edit_desc= document.createElement('input');
-						edit_desc.setAttribute("class","inline-text col-unit");
-						edit_desc.setAttribute("type","textarea");
-						edit_desc.setAttribute("id","edit_"+col_list[i]+"_value");
-						edit_desc.setAttribute("value",obj[col_list[i]]);
-						edit_desc.innerHTML = obj[col_list[i]];
+						var  info_desc= document.createElement('input');
+						info_desc.setAttribute("class","inline-text col-unit");
+						info_desc.setAttribute("type","textarea");
+						info_desc.setAttribute("id","info_"+col_list[i]+"_value");
+						info_desc.setAttribute("value",obj[col_list[i]]);
+						info_desc.innerHTML = obj[col_list[i]];
 						column.appendChild(col_item1);
-						column.appendChild(edit_desc);
+						column.appendChild(info_desc);
 
 						menu.appendChild(column);
 						continue;
 				}
 				var col_item2 = document.createElement('span');
 				col_item2.setAttribute("class","col-unit");
-				col_item2.setAttribute("id","edit_"+col_list[i]+"_value");
-				col_item2.innerHTML = obj[col_list[i]];
+				col_item2.setAttribute("id","info_"+col_list[i]+"_value");
+				if(col_list[i] == "ctime" || col_list[i] == "mtime"){
+						var date = new Date(obj[col_list[i]]*1000);
+						var dateS = date.getFullYear()+'/'+(date.getMonth()+1)+'/'+date.getDate();
+						col_item2.innerHTML = ( dateS  );
+						col_item2.setAttribute("title",date);
+				}else{
+						col_item2.innerHTML = obj[col_list[i]];
+				}
 				column.appendChild(col_item1);
 				column.appendChild(col_item2);
 
 				menu.appendChild(column);
 		}
 
+		menu.addEventListener("click" , function(e){e.stopPropagation()} , false);
 		container.appendChild(menu);
 		document.querySelectorAll('body').item(0).appendChild(container);
 		return;
@@ -210,9 +257,9 @@ function menu_move(e){
 					});
 
 }
-function menu_info(e){
+/*function menu_info(e){
 		console.log(rightMenu.value);
-}
+}*/
 function handleDragStart(e) {
 		this.style.opacity = '0.3';
 		  console.log("start: "+this.firstChild.textContent);

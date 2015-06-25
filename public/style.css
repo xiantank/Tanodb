@@ -166,20 +166,20 @@ html, body{
 		width: 100vw;
 		background-color: rgba(0 , 0 , 0 , 0.5);
 }
-#edit-menu{
+#info-menu{
 		width: 25rem;
 		background-color: #eee;
 
 }
-#edit-title{
+#info-title{
 		font-size: 2.5rem;
 		display: flex;
-		width: 70%;
+		width: 100%;
 		//align-items: center;
 		justify-content: center;
 		text-align: center;
 }
-.edit-column{
+.info-column{
 		box-sizing: border-box;
 		display: flex;
 		margin : .2rem .5rem;
