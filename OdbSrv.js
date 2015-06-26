@@ -140,7 +140,8 @@ app.post('/odb/:db/:parent/createDir/:filename',function(req,res){
 								});
 				odb.on('exit', function (code) {
 								res.write(str);
-								res.end("directory create success.");
+
+								res.end();
 								});
 				return;
 		
