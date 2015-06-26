@@ -448,6 +448,15 @@ int main(int argc , char *argv[] , char *envp[])
 						case 'd' : 
 							//f_index = getIndexbyName( optarg , fileIndex , true);
 							//index = fileIndex[f_index].index;
+							getRecColumn( atol(optarg) , "type" , buf );
+							if( !strcmp(buf , "dir")){
+									if(atol(optarg) == 0){
+											fprintf(stderr , "can not remove root\n");
+											exit(403) ;
+									}
+									deleteDir( atol (optarg));
+									return 0;
+							}
 							
 							if( getRecColumn( atol(optarg) , "obj_index" , buf ) == NULL){
 									fprintf(stderr,"object not exist(n)\n");
@@ -913,9 +922,9 @@ void createDir(long int rid , long int parent , char *filename , char *describe)
 		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
 		lseek(fd,DB.rec_offset,SEEK_SET);
 		sprintf(record , 
-		"@rid:%ld\n@_deleteFlag:%s\n@type:%s\n@name:%s\n@parent:%ld\n@ctime:%ld\n@mtime:%ld\n@desc:%s\n@children:%ld\n@_end:@\n",
+		"@rid:%ld\n@_deleteFlag:%s\n@type:%s\n@name:%s\n@parent:%ld\n@ctime:%ld\n@mtime:%ld\n@desc:%s\n@children:\n@_end:@\n",
 		rid , "0",  fileType , filename , parent 
-		, now , now , describe , parent);
+		, now , now , describe );
 		//TODO verify ()
 		write(fd , record ,size );
 
@@ -948,6 +957,7 @@ void addToDir(long int rid , long int parent){
 		free(childrenBuf);
 }
 void deleteDir(long int Drid){
+		if(Drid == 0) return;
 		char *childrenBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
 		childrenBuf = getRecColumn( Drid , "children" , childrenBuf) ;
 		if(childrenBuf == NULL){
