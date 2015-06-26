@@ -371,7 +371,29 @@ function upload(file , upload_parent){
 		var formData = new FormData();
 				formData.append('file', file);
 				var xhr = new XMLHttpRequest();
-				xhr.open('POST', "/odb/" + db+"/" + upload_parent  +"/put/"+file.name);
+				var url = "/odb/" + db+"/" + upload_parent  +"/put/"+file.name;
+				$.ajax({
+						url: url,
+						type:"POST",
+						data : formData,
+						async : false,
+						processData: false,
+						contentType: false,
+						success: function(msg){
+								var tmp = msg;
+								message(tmp);
+								//showList(currentDir[currentDir.length-1]);
+								showList(upload_parent);
+								//console.log("finish upload: "+(new Date()).getTime());
+								},
+						error: function(msg){
+								console.log("[error]"+msg);
+								}
+				});
+				return;
+
+
+				xhr.open('POST', url);
 				xhr.onload = function () {
 						if (xhr.status === 200) {
 								console.log('all done: ' + xhr.status);
@@ -444,6 +466,8 @@ function showList(dirId){
 				changeDir(dirId);
 				}catch(e){
 				  console.log(e);
+				  console.log(msg)
+				  console.log("errID:"+dirId);
 				  return;
 				  }
 				},
@@ -459,7 +483,7 @@ function gobackDir(e){
 				target = 0 ;
 		}
 		showList( currentDir[ target   ] );
-		console.log("backdir" , currentDir);
+		//console.log("backdir" , currentDir);
 }
 function changeDir(dirId){
 		var index = currentDir.indexOf(dirId);
