@@ -17,7 +17,7 @@ var imglist = {unknown : "img/question_mark.png" , dir : "img/directory.png"};
 var rightMenu;
 imglist.png = imglist.jpg = imglist.gif = imglist.bmp = "img/photo.png";
 function generalList( objs ){
-		console.log(objs);
+		//console.log(objs);
 		var fileList = document.getElementById("fileList");
 		if(objs.length==0){
 				message("no result");
@@ -132,6 +132,7 @@ function menu_copy(e){
 }
 function menu_info(e){
 		var obj = rightMenu.value;
+		console.log(obj.rid);
 		var container = document.createElement('div');
 		container.setAttribute("class","fullscreen-container");
 		container.addEventListener("click",function(e){
@@ -314,19 +315,63 @@ function uploadDrop(e) {
 						return;
 				}
 		}
+		var items = e.dataTransfer.items;
+		for (var i=0; i<items.length; i++) {
+				// webkitGetAsEntry is where the magic happens
+				var item = items[i].webkitGetAsEntry();
+				if (item) {
+						traverseFileTree(item , "" , currentDir[currentDir.length-1]);
+				}
+		}
+		return ;
 		try{
 		upload(e.dataTransfer.files,0);
 		}catch(e){console.log("[error]"+e);}
 		return false;
 }
-function upload(files,i){
-		if(i>= files.length ){
-				return;
+function traverseFileTree(item, path , parentId) {
+		parentId= parentId || currentDir[currentDir.length-1];
+		path = path || "";
+		if (item.isFile) {
+				// Get file
+				item.file(function(file) {
+						console.log("File:", path + file.name);
+						upload(file , parentId);
+				});
+		} else if (item.isDirectory) {
+				// Get folder contents
+				var url="/odb/"+db +"/" + parentId + "/createDir/"+item.name;
+				$.ajax({
+						url: url,
+						type:"POST",
+						async : false,
+						success: function(msg){
+							try{
+									var obj = JSON.parse(msg);
+									var dirReader = item.createReader();
+									dirReader.readEntries(function(entries) {
+											for (var i=0; i<entries.length; i++) {
+											traverseFileTree(entries[i], path + item.name + "/" , obj.rid );
+											}
+											});
+							}catch(e){
+								console.log(e);
+							return;
+							}
+						},
+						error: function(msg){
+							console.log("[error]"+msg);
+						}
+				});
+
 		}
+}
+function upload(file , upload_parent){
+		upload_parent=upload_parent || currentDir[currentDir.length-1];
 		var formData = new FormData();
-				formData.append('file', files[i]);
+				formData.append('file', file);
 				var xhr = new XMLHttpRequest();
-				xhr.open('POST', "/odb/" + db+"/" + currentDir[currentDir.length-1]  +"/put/"+files[i].name);
+				xhr.open('POST', "/odb/" + db+"/" + upload_parent  +"/put/"+file.name);
 				xhr.onload = function () {
 						if (xhr.status === 200) {
 								console.log('all done: ' + xhr.status);
@@ -336,11 +381,11 @@ function upload(files,i){
 				};
 				xhr.onreadystatechange = function(){
 						if(xhr.readyState==4){
-								i++;
-								upload(files,i);
 								var tmp = xhr.responseText;
 								message(tmp);
-								showList(currentDir[currentDir.length-1]);
+								//showList(currentDir[currentDir.length-1]);
+								showList(upload_parent);
+								console.log("finish upload: "+(new Date()).getTime());
 						}
 				};
 				xhr.send(formData);
@@ -393,7 +438,7 @@ function showList(dirId){
 				url: url,
 				type:"POST",
 				success: function(msg){
-				console.log("sucess:"+msg);
+				//console.log("sucess:"+msg);
 				try{
 				generalList( JSON.parse(msg).children );
 				changeDir(dirId);
@@ -408,10 +453,21 @@ function showList(dirId){
 					});
 
 }
+function gobackDir(e){
+		var target = currentDir.length-2;
+		if(target < 0){
+				target = 0 ;
+		}
+		showList( currentDir[ target   ] );
+		console.log("backdir" , currentDir);
+}
 function changeDir(dirId){
 		var index = currentDir.indexOf(dirId);
 		if( index > 0){//should not remove root
-				currentDir = currentDir.splice(index +1 , currentDir.length);
+				currentDir.splice(index +1 , currentDir.length);
+		}
+		else if(index == 0){
+				currentDir = [0];
 		}
 		else{
 				currentDir.push(dirId);
@@ -477,8 +533,8 @@ function message(msg){
 
 
 }
-function mkdir(){
-		var dirName = prompt("Directory Name","");
+function mkdir(event , dirName){
+		dirName = dirName || prompt("Directory Name","");
 		if(dirName){
 				url="/odb/"+db +"/" + currentDir[currentDir.length-1] + "/createDir/"+dirName;
 				$.ajax({
@@ -536,6 +592,9 @@ window.onresize = function(event) {
 
 
 <div id="topbar" class="topbar">
+	<div id="backDir" class="flow-right topbar-img">
+		<img class="fit-image" src="./img/back.png" />
+	</div>
 	<div id="createDir" class="flow-right topbar-img">
 		<img class="fit-image" src="./img/createDir.png" />
 	</div>
@@ -571,6 +630,8 @@ body.style.width= window.innerWidth+'px';
 		}
 var createDir = document.querySelectorAll('#createDir').item(0);
 createDir.addEventListener('click', mkdir , false);
+var backDir = document.querySelectorAll('#backDir').item(0);
+backDir.addEventListener('click', gobackDir , false);
 </script>
 </body>
 </html>
