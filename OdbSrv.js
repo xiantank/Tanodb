@@ -24,7 +24,7 @@ var server = http.createServer(app);
 app.set('jsonp callback name');
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(multer({ dest: './',
+app.use(multer({ dest: './uploads/',
 			rename: function (fieldname, filename) {
 				//return filename+Date.now();
 				return filename;
@@ -176,7 +176,7 @@ app.post('/odb/:db/:parent/put/:filename',function(req,res){
 
 				odb.stderr.on('data', function (data) {
 								erstr += data;
-								res.write(data);
+								//res.write(data);
 								});
 				odb.on('exit', function (code) {
 								res.write(str);
