@@ -179,7 +179,7 @@ app.post('/odb/:db/:parent/put/:filename',function(req,res){
 								//res.write(data);
 								});
 				odb.on('exit', function (code) {
-								res.write(str);
+								res.write(str+erstr);
 								res.end("File uploaded.");
 								console.log('['+req.files.file.path+']');
 								fs.unlink('./' + req.files.file.path) // delete the partially written file
