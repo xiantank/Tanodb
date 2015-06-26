@@ -13,9 +13,12 @@ var dragSrcEl = null;
 var MAXFILESIZE = 512 * 1024 * 1024;
 var db = "db";
 var currentDir = [0];
+var currentDirName = "";
 var imglist = {unknown : "img/question_mark.png" , dir : "img/directory.png"};
 var rightMenu;
+var moveSrc;
 imglist.png = imglist.jpg = imglist.gif = imglist.bmp = "img/photo.png";
+imglist.js = "img/js.png";
 function generalList( objs ){
 		//console.log(objs);
 		var fileList = document.getElementById("fileList");
@@ -109,7 +112,7 @@ function itemRightClick(e){
 		menu_ul.appendChild(menu_copy);
 		*/
 		var menu_list = 	["move" , "copy" , "info" ];
-		var menu_action =	[ menu_move , menu_copy , menu_info];
+		var menu_action =	[ initTreeList/*menu_move*/ , menu_copy , menu_info];
 		for(var i=0;i<menu_list.length ; i++){
 				var menu_item = document.createElement("li");
 				menu_item.innerHTML = menu_list[i];
@@ -235,10 +238,15 @@ function menu_info(e){
 		document.querySelectorAll('body').item(0).appendChild(container);
 		return;
 }
-function menu_move(e){
-		console.log(rightMenu.value.rid);
-		var dirName = prompt("Directory Name","");
-		var url="/odb/"+db+"/"+rightMenu.value.rid+"/changeDir/"+ currentDir + "/" + dirName;//TODO other method to get rid,now input by user;
+function moveToDir(e){
+		menu_move(this.obj.rid);
+		var move_menu = document.querySelectorAll('#fullscreen').item(0)
+		move_menu.parentNode.removeChild(move_menu);
+		
+}
+function menu_move(target){
+		var dirName = target;
+		var url="/odb/"+db+"/"+moveSrc+"/changeDir/"+ currentDir + "/" + dirName;//TODO other method to get rid,now input by user;
 		$.ajax({
 				url: url,
 				type:"GET",
@@ -247,6 +255,7 @@ function menu_move(e){
 					try{
 						showList( dirName );
 						changeDir(dirName);
+						moveSrc = null;
 					}catch(e){
 						console.log(e);
 						return;
@@ -296,6 +305,7 @@ function handleDragEnd(e) {
 		this.style.opacity = '1';
 }
 function uploadDrop(e) {
+		console.log("start upload: "+(new Date()).getTime());
 		if (e.stopPropagation) {
 				e.stopPropagation();
 				e.preventDefault();
@@ -384,7 +394,7 @@ function upload(file , upload_parent){
 								message(tmp);
 								//showList(currentDir[currentDir.length-1]);
 								showList(upload_parent);
-								//console.log("finish upload: "+(new Date()).getTime());
+								console.log("finish upload: "+(new Date()).getTime());
 								},
 						error: function(msg){
 								console.log("[error]"+msg);
@@ -454,8 +464,102 @@ function deleteDrop(e) {
 
 		return false;
 }
+function scaleList(event){
+		console.log(this);
+		var url="/odb/db/list/"+this.obj.rid;
+		var _this = this;
+		event.preventDefault();
+		event.stopPropagation();
+		if(this.children.length)return;
+		$.ajax({
+				url: url,
+				type:"POST",
+				success: function(msg){
+				//console.log("sucess:"+msg);
+				try{
+						var children =( JSON.parse(msg).children );
+						generalTreeList(children , _this);
+
+				}catch(e){
+				  console.log(e);
+				  console.log(msg)
+				  console.log("errID:"+_this);
+				  return;
+				  }
+				},
+				error: function(msg){
+					console.log("[error]"+msg);
+				}
+		});
+
+
+}
+function generalTreeList(objs, target){
+		var treeParent = document.createElement('ul');
+		console.log(objs);
+		var isChild = false
+		for(var i in objs){
+				if(objs[i].type !== "dir") continue;
+				var li = document.createElement('li');
+				li.setAttribute("class","tree-li");
+				li.addEventListener("click" , scaleList , false);
+				li.addEventListener("dblclick" , moveToDir , false);
+				li.innerHTML = objs[i].name;
+				li.obj = objs[i];
+				treeParent.appendChild(li);
+				console.log(li);
+				if(!isChild){
+						isChild = true;
+				}
+		}
+		if(isChild){
+				target.appendChild(treeParent);
+				console.log(treeParent);
+		}
+
+
+}
+function initTreeList(){
+		moveSrc = (rightMenu.value.rid);
+		var url="/odb/db/list/0";
+		$.ajax({
+				url: url,
+				type:"POST",
+				success: function(msg){
+				//console.log("sucess:"+msg);
+				try{
+						var fullcontainer = document.createElement('div');
+						fullcontainer.setAttribute("class","fullscreen-container");
+						fullcontainer.setAttribute("id","fullscreen");
+						fullcontainer.addEventListener("click" , function(e){
+								var move_menu = document.querySelectorAll('#fullscreen').item(0)
+								move_menu.parentNode.removeChild(move_menu);
+							} , false);
+						var container = document.createElement('div');
+						//container.setAttribute("class","fullscreen-container");
+						var treeRoot = document.createElement('ul');
+						treeRoot.setAttribute("class","tree-root");
+						treeRoot.innerHTML = "/";
+						container.appendChild(treeRoot);
+						fullcontainer.appendChild(container);
+						document.querySelectorAll('body').item(0).appendChild(fullcontainer);
+						generalTreeList( JSON.parse(msg).children , treeRoot );
+				//changeDir(dirId);
+				}catch(e){
+				  console.log(e);
+				  console.log(msg)
+				  console.log("errID:"+dirId);
+				  return;
+				  }
+				},
+				error: function(msg){
+					console.log("[error]"+msg);
+					}
+					});
+
+}
 function showList(dirId){
-		url="/odb/db/list/"+dirId;
+		var url="/odb/db/list/"+dirId;
 		$.ajax({
 				url: url,
 				type:"POST",
