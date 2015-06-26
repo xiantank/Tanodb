@@ -318,6 +318,7 @@ int main(int argc , char *argv[] , char *envp[])
 							//putRecord( rid , name , rec_parent , md5out , describe , size , index);
 							//parseCmdToRec(optarg,&rid,&parent,name,describe);
 							createDir(rid , parent , name , describe);
+							printf("{\"status\":200,\"message\":\"directory create success.\",\"rid\":%ld,\"parrent\":%ld}",rid,parent);
 							
 							break;
 						case 'R':
@@ -391,6 +392,7 @@ int main(int argc , char *argv[] , char *envp[])
 							}*/
 							index = putItem(indexTable , fileIndex , optarg , fd , bytes , true , recIndex , rid , parent , describe , name);
 //long int putItem(Index *indexTable, FileIndex *fileIndex,char *filename, int fd, long int size, int byName,RecordIndex recIndex, long int rid , char *rec_parent , char *describe);
+							close(fd);
 							if(index == -1){
 									fprintf(stderr , "filename exist\n");
 									exit(2);
@@ -772,6 +774,7 @@ int getVariable(void *start, int size , int nnum , char *filename){
 		ssize_t verify=-1;
 		fd = open(filename , O_RDONLY);
 		verify=read(fd , start , size * nnum);
+		close(fd);
 		if(verify != (size * nnum)){
 				fprintf(stderr , "get error[%s]\n",filename);
 				exit(3);
@@ -811,6 +814,7 @@ int putObject(int fdin , long int size , char *fileprefix , unsigned char *fid ,
 				}
                 bytes=read(fdin , buf, readlen);
         }
+        close(fd);
 
 		if(verify != ( size )){
 				fprintf(stderr , "putObj error\n");
@@ -835,6 +839,7 @@ int getObject(void *start , long int size , char *fileprefix , unsigned char fid
 				return -1;
 				//TODO some error handle
 		}
+		close(fd);
 		return verify;
 }
 long int getItem( Index *indexTable , FileIndex *fileIndex , char *ridString , unsigned char *md5out , int byRid){
@@ -881,6 +886,7 @@ long int getItem( Index *indexTable , FileIndex *fileIndex , char *ridString , u
 				//bytes=readString(&in , buf, readlen);
                 bytes=read(fd , buf, readlen);
         }
+        close(fd);
 
 
 
@@ -1187,6 +1193,7 @@ char *getRecordString(long int rid ){//TODO write back function ; if write back 
 		lseek(fd,recIndex.rec_offset,SEEK_SET);
 		read(fd , record , recIndex.rec_size);
 		record[recIndex.rec_size] = '\0';
+		close(fd);
 		return record;
 
 
@@ -1299,6 +1306,7 @@ void writeRecord(long int recordId , char *record , long int rec_size , long int
 		lseek(fd,rec_offset ,SEEK_SET);
 		write(fd , record , rec_size );
 		updateRecIndex(recordId , rec_offset , rec_size , INDEX_EXIST);
+		close(fd);
 		return ;
 }
 void deleteRecord(long int rid){
