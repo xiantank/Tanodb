@@ -233,20 +233,23 @@ function menu_info(e){
 				menu.appendChild(column);
 		}
 
-		menu.addEventListener("click" , function(e){e.stopPropagation()} , false);
+		menu.addEventListener("click" , function(e){e.stopPropagation();} , false);
 		container.appendChild(menu);
 		document.querySelectorAll('body').item(0).appendChild(container);
 		return;
 }
 function moveToDir(e){
+		e.stopPropagation();
 		menu_move(this.obj.rid);
 		var move_menu = document.querySelectorAll('#fullscreen').item(0)
-		move_menu.parentNode.removeChild(move_menu);
+		if(move_menu){
+				move_menu.parentNode.removeChild(move_menu);
+		}
 		
 }
 function menu_move(target){
 		var dirName = target;
-		var url="/odb/"+db+"/"+moveSrc+"/changeDir/"+ currentDir + "/" + dirName;//TODO other method to get rid,now input by user;
+		var url="/odb/"+db+"/"+moveSrc+"/changeDir/"+ currentDir[currentDir.length-1] + "/" + dirName;//TODO other method to get rid,now input by user;
 		$.ajax({
 				url: url,
 				type:"GET",
@@ -497,7 +500,7 @@ function scaleList(event){
 function generalTreeList(objs, target){
 		var treeParent = document.createElement('ul');
 		console.log(objs);
-		var isChild = false
+		var hasChild = false
 		for(var i in objs){
 				if(objs[i].type !== "dir") continue;
 				var li = document.createElement('li');
@@ -508,11 +511,11 @@ function generalTreeList(objs, target){
 				li.obj = objs[i];
 				treeParent.appendChild(li);
 				console.log(li);
-				if(!isChild){
-						isChild = true;
+				if(!hasChild){
+						hasChild = true;
 				}
 		}
-		if(isChild){
+		if(hasChild){
 				target.appendChild(treeParent);
 				console.log(treeParent);
 		}
@@ -536,8 +539,11 @@ function initTreeList(){
 								move_menu.parentNode.removeChild(move_menu);
 							} , false);
 						var container = document.createElement('div');
+						container.addEventListener("click" , function(e){e.stopPropagation();} , false);
 						//container.setAttribute("class","fullscreen-container");
 						var treeRoot = document.createElement('ul');
+						treeRoot.obj = JSON.parse(msg).children[0];
+						treeRoot.addEventListener("dblclick" , moveToDir , false);
 						treeRoot.setAttribute("class","tree-root");
 						treeRoot.innerHTML = "/";
 						container.appendChild(treeRoot);
