@@ -348,7 +348,11 @@ int main(int argc , char *argv[] , char *envp[])
 
 							break;*/
 						case 'r' :
-							fprintf(stdout , "%s\n" ,getRecordString(atol(optarg))  );return 0;
+
+							//fprintf(stdout , "%s\n" ,getRecordString(atol(optarg))  );return 0;
+							gaisRecToJson(getRecordString(atol(optarg) ) , buf);
+							printf("%s",buf);
+							return 0;
 							break;
 						case 'T' :
 							//tmprecord = getRecordString(atoi(optarg));
