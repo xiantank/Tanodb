@@ -13,17 +13,53 @@ var dragSrcEl = null;
 var MAXFILESIZE = 512 * 1024 * 1024;
 var db = "db";
 var currentDir = [0];
-var currentDirName = "";
-var imglist = {unknown : "img/question_mark.png" , dir : "img/directory.png"};
 var rightMenu;
 var moveSrc;
+var objArrInWall;
+var imglist = {unknown : "img/question_mark.png" , dir : "img/directory.png"};
 imglist.png = imglist.jpg = imglist.gif = imglist.bmp = "img/photo.png";
 imglist.js = "img/js.png";
+function sortWall(sortMethod , desc){
+		generalList( objArrInWall.sort(function(a , b ){
+						if(desc){
+								return (a[sortMethod] < b[sortMethod]);
+						}
+						else{
+								return (a[sortMethod] > b[sortMethod]);
+						}
+				})
+		);
+
+
+}
 function generalList( objs ){
 		//console.log(objs);
+		objArrInWall = objs;
 		var fileList = document.getElementById("fileList");
+		if(currentDir.length){
+				var url = '/odb/'+db+'/rec/'+currentDir[currentDir.length-1]+'/';
+				$.ajax({
+						url: url,
+						type:"GET",
+						success: function(msg){
+								console.log("sucess:"+msg);
+								try{
+									var curDir = document.getElementById("curDir");
+									curDir.innerHTML = JSON.parse(msg).name; 
+								}catch(e){
+										console.log(e);
+										return;
+								}
+							},
+						error: function(msg){
+								console.log("[error]"+msg);
+						}
+				});
+		}
+
 		if(objs.length==0){
 				message("no result");
+				fileList.innerHTML="";
 		}
 		else{
 				fileList.innerHTML="";
@@ -503,6 +539,7 @@ function generalTreeList(objs, target){
 		var hasChild = false
 		for(var i in objs){
 				if(objs[i].type !== "dir") continue;
+				if(objs[i].rid == "0" ) continue;
 				var li = document.createElement('li');
 				li.setAttribute("class","tree-li");
 				li.addEventListener("click" , scaleList , false);
@@ -572,8 +609,8 @@ function showList(dirId){
 				success: function(msg){
 				//console.log("sucess:"+msg);
 				try{
-				generalList( JSON.parse(msg).children );
 				changeDir(dirId);
+				generalList( JSON.parse(msg).children );
 				}catch(e){
 				  console.log(e);
 				  console.log(msg)
@@ -743,6 +780,7 @@ window.onresize = function(event) {
 		<img class="fit-image" src="./img/trashcan.png" />
 	</div>
 </div>
+<div id="curDir" class="contain-title"></div>
 <div id="fileList" class="list-block">
 </div>
 <div id="message" class="message hid">
