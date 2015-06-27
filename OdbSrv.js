@@ -254,6 +254,50 @@ app.post('/odb/:db/list/:rid',function(req,res){
 		}
 		res.end("File list FAIL.");
 });
+app.get('/odb/:db/rec/:rid',function(req,res){
+		var wrong = function(errMessage){
+				var resStr = errMessage || '';
+				res.write(resStr);
+				res.end();
+		}
+		var str2='';
+		url_parts = url.parse(req.url, true);
+		var query = url_parts.query;
+		var para = [];
+		var resSet = false;
+		if( req.params  ){
+			if(req.params.rid){
+				para = ["-p",req.params.db,"--recordGet",req.params.rid];
+				console.log(JSON.stringify(para));
+			}else{
+				wrong("error argument<br\\>\r\n");
+				return;
+			}
+			var odb = spawn('./odb' , para);
+			var str = '';
+			var erstr='';
+			//res.set({'Content-Type: ':'application/octet-stream'});
+			odb.stdout.on('data', function (data) {
+							res.write(data);
+							str += data;
+							});
+
+			odb.stderr.on('data', function (data) {
+					//TODO set header 404 or other
+							res.write(data);
+							});
+			odb.on('close', function (code) {
+					console.log(str.length);
+							res.end();
+
+							});
+			return;
+		}
+
+
+				//res.end("File upload FAIL.");
+});
+
 app.get('/odb/:db/get/:rid/:filename?',function(req,res){
 		var wrong = function(errMessage){
 				var resStr = errMessage || '';
