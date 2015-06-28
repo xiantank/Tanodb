@@ -157,6 +157,7 @@ void deleteDir(long int Drid);
 char *traverseChildren(char *childrenString , char (*callback)(long int));
 /*callback*/
 void printChildJson(long int childRid);
+int firstCharcmp(const void *a ,const void *b);
 //append
 /*
 type:		get by filename						in the func.
@@ -165,7 +166,12 @@ ctime:		use something like :Date().now		in the func.
 tags:		default no tag, add when update
 recordId:	get from node.js
 */
+/*search function*/
 
+void search(char *searchString , int startPostiton , int limit);
+char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[][30] , int num[] );
+int searchRecord(char *record , char patterns[][30] , int *count);
+int parseSearchString(char *searchString , char mustitems[][30] , char exceptitems[][30] , char optionalitems[][30] ,  int *num);
 /*
  * tool function
 */
@@ -208,6 +214,7 @@ int main(int argc , char *argv[] , char *envp[])
 		Index *indexTable;
 		FileIndex *fileIndex;
 		RecordIndex *recIndex;
+		RecordIndex tmprecIndex;
 		struct option long_options[] = {
 				{ "init" , 0 , NULL , 'i' },
 				//{ "default" , 0 , NULL , 'd' },
@@ -355,10 +362,14 @@ int main(int argc , char *argv[] , char *envp[])
 							return 0;
 							break;
 						case 'T' :
+							strcpy(buf , optarg);
+							search(buf , 0,0);
+							//tmprecIndex = getRecIndex(33);
+							//printf("%d",tmprecIndex.indexFlag);
 							//tmprecord = getRecordString(atoi(optarg));
-							updateRecord( atol(optarg) ,  "children" , "14");
-							updateRecord( atol(optarg) ,  "children" , "14,24");
-							fprintf(stdout , "%s\n" ,getRecordString(atol(optarg))  );return 0;
+							//updateRecord( atol(optarg) ,  "children" , "14");
+							//updateRecord( atol(optarg) ,  "children" , "14,24");
+							//fprintf(stdout , "%s\n" ,getRecordString(atol(optarg))  );return 0;
 							break;
 						case 'G' :
 							index = getItem(indexTable , fileIndex , optarg , md5out ,  true );
@@ -939,7 +950,7 @@ void createDir(long int rid , long int parent , char *filename , char *describe)
 		/*TODO addToDir(){
 				string = getRecColumn("children" , parent);
 				if ( string ){//already has children
-						string += ','+rid;
+						string += ';'+rid;
 				}else{
 						updateColumn(parent , children , <rid>);
 				}
@@ -955,7 +966,7 @@ void addToDir(long int rid , long int parent){
 				sprintf(childrenBuf , "%ld" , rid);
 		}
 		else{//already has some children
-				sprintf(childrenBuf , "%s,%ld" , childrenBuf , rid);
+				sprintf(childrenBuf , "%s;%ld" , childrenBuf , rid);
 		}
 		updateRecord( parent , "children" , childrenBuf );
 		free(childrenBuf);
@@ -998,7 +1009,7 @@ void readDir(long int Drid){
 		free(childrenBuf);
 
 }
-void printChildJson(long int childRid){
+void printChildJson(long int childRid){/*not real json, just like "{childA},{childB},{childC}"*/
 		static int isFirst=true;
 		if(childRid == -1){
 				isFirst=true;
@@ -1040,7 +1051,7 @@ void deleteFromParrent(long int rid , long int Drid){
 						updateRecord( Drid  , "children" , childrenBuf);
 				}else if( sprintf(target , ",%ld," , rid) && (dptr=strstr(childrenBuf , target ) ) ){
 						sptr = dptr+strlen(target);
-						dptr++;//skip ','
+						dptr++;//skip ';'
 						while(*sptr){
 								*(dptr++) = *(sptr++);
 						}
@@ -1061,12 +1072,15 @@ char *traverseChildren(char *childrenString , char (*callback)(long int)){
 		strcpy(cBuf , childrenString );
 
 		char *ptr = cBuf , *cptr = ptr;
+		while(*ptr && !isdigit(*ptr) ){//skip to next child
+				ptr++;
+		}
 		while(*ptr && *ptr != '\n'){
 				callback( atol(cptr) );
 				while( isdigit(*ptr) ){//skip to next child
 						ptr++;
 				}
-				if(*ptr == ',')cptr = ++ptr;
+				if(*ptr == ';')cptr = ++ptr;
 				else break;
 
 		}
@@ -1183,7 +1197,7 @@ void putRecord(long int recordId , char *filename , long int parent ,unsigned ch
 		/*TODO addToDir(){
 				string = getColumn("children" , parent);
 				if ( string ){//already has children
-						string += ','+rid;
+						string += ';'+rid;
 				}else{
 						updateColumn(parent , children , <rid>);
 				}
@@ -1322,6 +1336,169 @@ void writeRecord(long int recordId , char *record , long int rec_size , long int
 		updateRecIndex(recordId , rec_offset , rec_size , INDEX_EXIST);
 		close(fd);
 		return ;
+}
+int firstCharcmp(const void *a ,const void *b){
+		return *((char *)a) - *((char *)b);
+		//return strcmp((char*) a, (char *) b);
+}
+int parseSearchString(char *searchString , char mustitems[][30] , char exceptitems[][30] , char optionalitems[][30] ,  int *num){
+
+		char *token = " ";
+		char *tmpItem;
+
+
+		num[0]=num[1]=num[2]=0;
+
+		tmpItem = strtok(searchString , token);
+		while(tmpItem){
+				printf("%s\n",tmpItem);
+				if(tmpItem[0] == '+'){
+						strcpy(optionalitems[num[2]++] , (tmpItem+1));
+				}
+				else if(tmpItem[0] == '-'){
+						strcpy(exceptitems[num[1]++] , (tmpItem+1));
+				}
+				else{
+						strcpy(mustitems[num[0]++] , tmpItem);
+				}
+				tmpItem = strtok(NULL ,token );
+		}
+
+		strcpy(mustitems[num[0]] , "");
+		strcpy(exceptitems[num[1]] , "");
+		strcpy(optionalitems[num[2]] , "");
+		
+
+
+		return true;
+
+}
+void search(char *searchString , int startPostiton , int limit){
+		char mustitems[30][30];
+		char exceptitems[30][30];
+		char optionalitems[30][30];
+		int num[3];
+		int i;
+		parseSearchString(searchString , mustitems , exceptitems , optionalitems , num);
+		printf("---\n");
+		for(i=0;i<num[0];i++){
+				printf("%s\n",mustitems[i]);
+		}
+		for(i=0;i<num[1];i++){
+				printf("%s\n",exceptitems[i]);
+		}
+		for(i=0;i<num[2];i++){
+				printf("%s\n",optionalitems[i]);
+		}
+		searchTraverseRecord(mustitems , exceptitems, optionalitems, num);
+
+}
+
+//char *traverseChildren(char *childrenString , char (*callback)(long int));
+char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[][30] , int num[] ){
+		RecordIndex recIndex;
+		char recIndexFile[50];
+		long int recIdxOffset;
+		int fd;
+		int j,n;
+		long int rid;
+		int count[3][30];
+		int result=false;
+		char *recordString;
+		char *childrenBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
+
+		sprintf(recIndexFile,"db%srec.inx",DB.PATH);
+		fd = open(recIndexFile , O_RDONLY);
+		if(fd<0){
+				//error handle
+		}
+		rid=0;
+		childrenBuf[0] = '\0';
+		while(  ( n = read(fd , &recIndex , sizeof( RecordIndex ) ) ) > 0  ){
+				rid++;//rid:0 not need search
+				if(recIndex.indexFlag & INDEX_EXIST ){
+						if(recIndex.indexFlag & INDEX_DELETE)continue;
+				}else{
+						continue;
+				}
+				for(j=0;j<30;j++){
+						count[0][j]=count[1][j]=count[2][j]=0;
+				}
+				result=0;
+				recIdxOffset = rid * sizeof(RecordIndex);
+				lseek(fd , recIdxOffset ,SEEK_SET);
+
+				recordString = getRecordString( rid );
+				if( num[1]>0 &&  searchRecord(recordString , except , count[1]) ){
+						free(recordString);
+						continue;
+				}
+
+				if( (num[0]>0) && (result=searchRecord(recordString , must , count[0]))){
+						if(result == false){
+								free(recordString);
+								continue;
+						}
+						/*TODO for loop check every count has value*/
+				}
+				
+				if( (num[2]>0) && (result=searchRecord(recordString , optional , count[2]) )){
+				}
+				else if(num[0]==0 && (result==0) ){
+						free(recordString);
+						continue;
+				}else{
+				}
+				sprintf( childrenBuf ,"%s;%ld" , childrenBuf , rid);
+				//free(recordString);
+
+		}
+		//traverseChildren(char *childrenString , char (*callback)(long int))
+		printf("%s\n",childrenBuf);
+		if(n != 0){
+				fprintf(stderr , "known error: n = %d\n",n);
+				exit(500);
+		}
+		printf("{\"action\":\"search\",\"children\":[");
+		traverseChildren(childrenBuf , (void *)&printChildJson);
+		printChildJson(-1);//clear printChildJson.isFirst
+		printf("]}");
+
+		free(childrenBuf);
+		close(fd);
+
+		return NULL;
+}
+int searchRecord(char *record , char patterns[][30] , int *count){//return total find ; count for each pat.
+
+		int i=0;
+		char *ptr ;
+		int result=0;
+		char partterns[30];
+		while(i<30){
+				ptr = record;
+				count[i] = 0;
+				if(patterns[i][0] == '\0' )break;
+				/*TODO 
+				  check has key?
+				  1.Y:strcpy(pattern, (pptr=strstr(patterns[i],":"))  +1);get key; search pattern;
+				  2.N:strcpy(pattern,patterns[i]) ; search pattern;
+				 */
+
+				while( *ptr ){
+						ptr = strstr(ptr,patterns[i]);
+						/*TODO if(haskey) check key*/
+						count[i]++;
+						ptr++;
+						result++;
+				}
+				i++;
+				
+		}
+
+
+		return result;
+
 }
 void deleteRecord(long int rid){
 		char parentBuf[50];
