@@ -362,8 +362,6 @@ int main(int argc , char *argv[] , char *envp[])
 							return 0;
 							break;
 						case 'T' :
-							strcpy(buf , optarg);
-							search(buf , 0,0);
 							//tmprecIndex = getRecIndex(33);
 							//printf("%d",tmprecIndex.indexFlag);
 							//tmprecord = getRecordString(atoi(optarg));
@@ -443,7 +441,9 @@ int main(int argc , char *argv[] , char *envp[])
 							printf("]");
 							exit(0);
 						case 'S' :
-							printf("[");
+							strcpy(buf , optarg);
+							search(buf , 0,0);
+							/*printf("[");
 							for(i=0,n=0;i<DB.BUCKETNUM;i++){//n is cnt for list
 									if( ( fileIndex[i].indexFlag & INDEX_EXIST) && !(fileIndex[i].indexFlag & INDEX_DELETE)){
 											if(!strcasestr(fileIndex[i].filename,optarg)){
@@ -458,7 +458,8 @@ int main(int argc , char *argv[] , char *envp[])
 									}
 							}
 							printf("]");
-							exit(0);
+							exit(0);*/
+							break;
 
 						case 'd' : 
 							//f_index = getIndexbyName( optarg , fileIndex , true);
@@ -1071,10 +1072,11 @@ char *traverseChildren(char *childrenString , char (*callback)(long int)){
 		char *cBuf = (char *) malloc ( sizeof(char) * strlen(childrenString) + 1 ) ;
 		strcpy(cBuf , childrenString );
 
-		char *ptr = cBuf , *cptr = ptr;
+		char *ptr = cBuf , *cptr;
 		while(*ptr && !isdigit(*ptr) ){//skip to next child
 				ptr++;
 		}
+		cptr=ptr;
 		while(*ptr && *ptr != '\n'){
 				callback( atol(cptr) );
 				while( isdigit(*ptr) ){//skip to next child
@@ -1172,12 +1174,6 @@ void putRecord(long int recordId , char *filename , long int parent ,unsigned ch
 		if(len <= 0){ //first character is '.'  that is not data type , is hidden!
 				strcpy(fileType , "none");				
 		}
-		/*TODO create dir
-		if(filename == /.*+\.dir/ ){
-				name = (.*+)\.dir ;
-				fileType = dir;
-		}
-		*/
 		/*end find filetype*/
 
 		sprintf(recFileName,"db%s001.rec",DB.PATH);
@@ -1194,15 +1190,6 @@ void putRecord(long int recordId , char *filename , long int parent ,unsigned ch
 		updateRecIndex(recordId , DB.rec_offset , size , INDEX_EXIST);
 		DB.rec_offset+= size;
 		addToDir(recordId , parent);
-		/*TODO addToDir(){
-				string = getColumn("children" , parent);
-				if ( string ){//already has children
-						string += ';'+rid;
-				}else{
-						updateColumn(parent , children , <rid>);
-				}
-		}
-		*/
 		close(fd);
 		saveDB();
 		
@@ -1351,7 +1338,6 @@ int parseSearchString(char *searchString , char mustitems[][30] , char exceptite
 
 		tmpItem = strtok(searchString , token);
 		while(tmpItem){
-				printf("%s\n",tmpItem);
 				if(tmpItem[0] == '+'){
 						strcpy(optionalitems[num[2]++] , (tmpItem+1));
 				}
@@ -1380,16 +1366,6 @@ void search(char *searchString , int startPostiton , int limit){
 		int num[3];
 		int i;
 		parseSearchString(searchString , mustitems , exceptitems , optionalitems , num);
-		printf("---\n");
-		for(i=0;i<num[0];i++){
-				printf("%s\n",mustitems[i]);
-		}
-		for(i=0;i<num[1];i++){
-				printf("%s\n",exceptitems[i]);
-		}
-		for(i=0;i<num[2];i++){
-				printf("%s\n",optionalitems[i]);
-		}
 		searchTraverseRecord(mustitems , exceptitems, optionalitems, num);
 
 }
@@ -1434,19 +1410,27 @@ char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[]
 						continue;
 				}
 
-				if( (num[0]>0) && (result=searchRecord(recordString , must , count[0]))){
+				if( (num[0]>0) ){
+						result=searchRecord(recordString , must , count[0]);
 						if(result == false){
 								free(recordString);
 								continue;
 						}
+						for(j=0;j<num[0];j++){
+								if(count[0][j] == 0){
+										break;
+								}
+						}
+						if(j!=num[0])continue;
 						/*TODO for loop check every count has value*/
 				}
 				
-				if( (num[2]>0) && (result=searchRecord(recordString , optional , count[2]) )){
-				}
-				else if(num[0]==0 && (result==0) ){
-						free(recordString);
-						continue;
+				if( (num[2]>0) ){
+						result=searchRecord(recordString , optional , count[2]);
+						if(num[0]==0 && (result==0) ){
+								free(recordString);
+								continue;
+						}
 				}else{
 				}
 				sprintf( childrenBuf ,"%s;%ld" , childrenBuf , rid);
@@ -1454,7 +1438,6 @@ char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[]
 
 		}
 		//traverseChildren(char *childrenString , char (*callback)(long int))
-		printf("%s\n",childrenBuf);
 		if(n != 0){
 				fprintf(stderr , "known error: n = %d\n",n);
 				exit(500);
@@ -1485,12 +1468,13 @@ int searchRecord(char *record , char patterns[][30] , int *count){//return total
 				  2.N:strcpy(pattern,patterns[i]) ; search pattern;
 				 */
 
-				while( *ptr ){
-						ptr = strstr(ptr,patterns[i]);
+				ptr = strcasestr(ptr,patterns[i]);
+				while( ptr && *ptr ){
 						/*TODO if(haskey) check key*/
+						result++;
 						count[i]++;
 						ptr++;
-						result++;
+						ptr = strcasestr(ptr,patterns[i]);
 				}
 				i++;
 				
