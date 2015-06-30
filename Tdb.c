@@ -360,7 +360,9 @@ int main(int argc , char *argv[] , char *envp[])
 
 							//fprintf(stdout , "%s\n" ,getRecordString(atol(optarg))  );return 0;
 							gaisRecToJson(getRecordString(atol(optarg) ) , buf);
+#if DEBUG
 							printf("%s",buf);
+#endif
 							return 0;
 							break;
 						case 'T' :
@@ -1057,7 +1059,7 @@ void deleteFromParrent(long int rid , long int Drid){
 				}else if( sprintf(target , "%ld" , rid) && !strcmp(childrenBuf , target ) ){
 						childrenBuf[0]='\0';
 						updateRecord( Drid  , "children" , childrenBuf);
-				}else if( sprintf(target , ",%ld," , rid) && (dptr=strstr(childrenBuf , target ) ) ){
+				}else if( sprintf(target , ";%ld;" , rid) && (dptr=strstr(childrenBuf , target ) ) ){
 						sptr = dptr+strlen(target);
 						dptr++;//skip ';'
 						while(*sptr){
@@ -1065,12 +1067,14 @@ void deleteFromParrent(long int rid , long int Drid){
 						}
 						*dptr ='\0';
 						updateRecord( Drid  , "children" , childrenBuf);
-				}else if( sprintf(target , ",%ld" , rid) && ( dptr = strstr(childrenBuf , target ) ) ){
+				}else if( sprintf(target , ";%ld" , rid) && ( dptr = strstr(childrenBuf , target ) ) ){
 						*dptr = '\0';
 						updateRecord( Drid  , "children" , childrenBuf);
 				}
 		}
+#if DEBUG
 		printf("%s",childrenBuf);
+#endif
 		free(childrenBuf);
 
 
