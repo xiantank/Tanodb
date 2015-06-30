@@ -168,8 +168,8 @@ recordId:	get from node.js
 */
 /*search function*/
 
-void search(char *searchString , int startPostiton , int limit);
-char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[][30] , int num[] );
+void search(char *searchString , int startPosition , int limit);//if limit<=0 => no limit;
+char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[][30] , int num[] , int startPosition , int limit);
 int searchRecord(char *record , char patterns[][30] , int *count);
 int parseSearchString(char *searchString , char mustitems[][30] , char exceptitems[][30] , char optionalitems[][30] ,  int *num);
 /*
@@ -207,6 +207,8 @@ int main(int argc , char *argv[] , char *envp[])
 		long int parent=0 , rid;
 		char name[512],describe[1024];
 		char key[512] , value[1024];
+		long int startPosition;
+		char limit[50];
 
 		unsigned char md5out[MD5_DIGEST_LENGTH];
 		int fd;
@@ -441,8 +443,13 @@ int main(int argc , char *argv[] , char *envp[])
 							printf("]");
 							exit(0);
 						case 'S' :
-							strcpy(buf , optarg);
-							search(buf , 0,0);
+							if(strstr(optarg,";")){
+									parseToColumn(optarg , &startPosition , limit , buf  );
+									search(buf , startPosition,atol(limit));
+							}else{
+									strcpy(buf , optarg);
+									search(buf , 0 , 0);
+							}
 							/*printf("[");
 							for(i=0,n=0;i<DB.BUCKETNUM;i++){//n is cnt for list
 									if( ( fileIndex[i].indexFlag & INDEX_EXIST) && !(fileIndex[i].indexFlag & INDEX_DELETE)){
@@ -1359,19 +1366,18 @@ int parseSearchString(char *searchString , char mustitems[][30] , char exceptite
 		return true;
 
 }
-void search(char *searchString , int startPostiton , int limit){
+void search(char *searchString , int startPosition , int limit){
 		char mustitems[30][30];
 		char exceptitems[30][30];
 		char optionalitems[30][30];
 		int num[3];
-		int i;
 		parseSearchString(searchString , mustitems , exceptitems , optionalitems , num);
-		searchTraverseRecord(mustitems , exceptitems, optionalitems, num);
+		searchTraverseRecord(mustitems , exceptitems, optionalitems, num , startPosition , limit);
 
 }
 
 //char *traverseChildren(char *childrenString , char (*callback)(long int));
-char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[][30] , int num[] ){
+char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[][30] , int num[] , int startPosition , int limit){
 		RecordIndex recIndex;
 		char recIndexFile[50];
 		long int recIdxOffset;
@@ -1382,6 +1388,7 @@ char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[]
 		int result=false;
 		char *recordString;
 		char *childrenBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
+		int position=0;
 
 		sprintf(recIndexFile,"db%srec.inx",DB.PATH);
 		fd = open(recIndexFile , O_RDONLY);
@@ -1433,13 +1440,18 @@ char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[]
 						}
 				}else{
 				}
-				sprintf( childrenBuf ,"%s;%ld" , childrenBuf , rid);
+				if(position>=startPosition){
+						sprintf( childrenBuf ,"%s;%ld" , childrenBuf , rid);
+						position++;
+						limit--;
+						if(limit==0)break;
+				}
 				//free(recordString);
 
 		}
 		//traverseChildren(char *childrenString , char (*callback)(long int))
-		if(n != 0){
-				fprintf(stderr , "known error: n = %d\n",n);
+		if( limit<0 &&n != 0){
+				fprintf(stderr , "unknown error: n = %d\n",n);
 				exit(500);
 		}
 		printf("{\"action\":\"search\",\"children\":[");
@@ -1457,7 +1469,6 @@ int searchRecord(char *record , char patterns[][30] , int *count){//return total
 		int i=0;
 		char *ptr ;
 		int result=0;
-		char partterns[30];
 		while(i<30){
 				ptr = record;
 				count[i] = 0;
