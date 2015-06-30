@@ -189,7 +189,7 @@ app.post('/odb/:db/:parent/put/:filename',function(req,res){
 		}
 		res.end("File upload FAIL.");
 });
-app.post('/odb/:db/search',function(req,res){
+app.post('/odb/:db/search/:start?/:limit?/',function(req,res){
 		var wrong = function(errMessage){
 				var resStr = errMessage || '';
 				res.write(resStr);
@@ -198,7 +198,12 @@ app.post('/odb/:db/search',function(req,res){
 		var para = [];
 		var resSet = false;
 		if( req.params && req.params.db && req.body && req.body.search ){
-			para = ["-p",req.params.db,"--search" , req.body.search];
+			if(req.params.start && req.params.limit){
+				para = ["-p",req.params.db,"--search" , req.params.start+";"+req.params.limit+";"+req.body.search];
+			}else{
+				para = ["-p",req.params.db,"--search" , req.body.search];
+			}
+			console.log(JSON.stringify(para));
 			var odb = spawn('./odb' , para);
 			var str = '';
 			var erstr='';
