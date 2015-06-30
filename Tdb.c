@@ -1442,10 +1442,10 @@ char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[]
 				}
 				if(position>=startPosition){
 						sprintf( childrenBuf ,"%s;%ld" , childrenBuf , rid);
-						position++;
 						limit--;
 						if(limit==0)break;
 				}
+				position++;
 				//free(recordString);
 
 		}

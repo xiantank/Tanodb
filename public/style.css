@@ -74,7 +74,7 @@ html, body{
 	position: relative;
 	margin: 1rem 1rem 1rem 1rem;
 }
-.searchDiv input {
+.topinput {
 	margin-left: 0.3 rem;
 	margin-right: 0.3 rem;
 	height: 1.8 rem;
@@ -206,6 +206,9 @@ html, body{
 }
 .contain-title{
 		font-size: 2.5rem;
+}
+.tiny-input{
+		width: 3rem;
 }
 .input{
 }

@@ -653,8 +653,15 @@ function search(){
 				message("can not be empty");
 				return false;
 		}
-
-		url="/odb/db/search";
+		var limit = document.getElementById('limit').value
+		var start = document.getElementById('start').value
+		var url;
+		if(limit !== "" && start !== ""){
+				url="/odb/db/search/"+start+"/"+limit+"/";
+		}
+		else{
+				url="/odb/db/search/";
+		}
 		var formData = {search:search};
 		/*
 		var formData = new FormData();
@@ -669,6 +676,7 @@ function search(){
 				//try{
 					currentDir=[];	
 				generalList( JSON.parse(msg).children );
+				sortbyopt();
 				/*}catch(e){
 				  console.log(e);
 				  return;
@@ -760,6 +768,11 @@ window.onresize = function(event) {
 		body.style.width= window.innerWidth+'px';
 
 };
+function sortbyopt(){
+		var decrease = document.getElementById('decrease');
+		var sortMethod = $('input[type=radio][name=sort]:checked').val();
+		sortWall(sortMethod , decrease.checked);
+}
 </script>
 </head>
 <body>
@@ -776,7 +789,9 @@ window.onresize = function(event) {
 		<img class="fit-image" src="./img/add.png" />
 	</div>
 	<span id="searchbar" class="mid searchDiv">
-			<input type="input" id="search">
+			<input type="input" class="topinput" id="search" />
+			<input type="input" class="tiny-input" id="start" placeholder="start" />
+			<input type="input" class="tiny-input" id="limit" placeholder="limit" />
 			<button onclick="search()" >search</button>
 	</span>
 	<div id="trashcan" class="trashcan dropTarget topbar-img flow-right">
@@ -851,15 +866,8 @@ backDir.addEventListener('click', gobackDir , false);
 		}
 		e.stopPropagation();
 	}, false);
-$('input[type=radio][name=sort]').change(function() {
-		var decrease = document.getElementById('decrease');
-		sortWall(this.value , decrease.checked);
-});
-$('#decrease').change(function() {
-		console.log(this.checked);
-		var sortMethod = $('input[type=radio][name=sort]:checked').val();
-		sortWall(sortMethod , decrease.checked);
-});
+$('input[type=radio][name=sort]').change(sortbyopt);
+$('#decrease').change(sortbyopt);
 </script>
 </body>
 </html>
