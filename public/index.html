@@ -5,8 +5,6 @@
 Data Engineering project 1 - odb
 </title>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
-<!--script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
-<link rel="stylesheet" href="//www.cs.ccu.edu.tw/~cht99u/src/bootstrap-3.3.4-dist/css/bootstrap.min.css"-->
 <link rel="stylesheet" href="./style.css">
 <script>
 var dragSrcEl = null;
@@ -20,6 +18,7 @@ var imglist = {unknown : "img/question_mark.png" , dir : "img/directory.png"};
 imglist.png = imglist.jpg = imglist.gif = imglist.bmp = "img/photo.png";
 imglist.js = "img/js.png";
 function sortWall(sortMethod , desc){
+		sortMethod = sortMethod || "rid";
 		generalList( objArrInWall.sort(function(a , b ){
 						if(desc){
 								return (a[sortMethod] < b[sortMethod]);
@@ -55,6 +54,9 @@ function generalList( objs ){
 								console.log("[error]"+msg);
 						}
 				});
+		}else{
+				var curDir = document.getElementById("curDir");
+				curDir.innerHTML = "";
 		}
 
 		if(objs.length==0){
@@ -665,7 +667,8 @@ function search(){
 				success: function(msg){
 				//console.log("sucess:"+msg);
 				//try{
-				generalList( JSON.parse(msg) );
+					currentDir=[];	
+				generalList( JSON.parse(msg).children );
 				/*}catch(e){
 				  console.log(e);
 				  return;
@@ -780,6 +783,37 @@ window.onresize = function(event) {
 		<img class="fit-image" src="./img/trashcan.png" />
 	</div>
 </div>
+<div id="advancedOptions" class="input">
+			<div id="advOptionTopbar">
+				+ advanced options
+			</div>
+			<div id="advOptionContainer">
+				<hr />
+				<div><input type="radio" name="sort" id="sort_name" value="name"/>
+					<label for="sort_name">
+						sort by Name
+					</label>
+				</div>
+				<div><input type="radio" name="sort" id="sort_type" value="type"/>
+					<label for="sort_type">
+						sort by Type
+					</label>
+				</div>
+				<div>
+					<input type="radio" name="sort" id="sort_ctime" value="ctime"/>
+					<label for="sort_ctime">
+						sort by Create time
+					</label>
+				</div>
+				<div >
+					<input type="radio" name="sort" id="sort_mtime" value="mtime"/>
+					<label for="sort_mtime">
+						sort by Last modified 
+					</label>
+				</div>
+				<div><input type="checkbox" name="decrease" id="decrease"><label for="decrease">Decrease</label></div>
+			</div>
+		</div>
 <div id="curDir" class="contain-title"></div>
 <div id="fileList" class="list-block">
 </div>
@@ -804,6 +838,28 @@ var createDir = document.querySelectorAll('#createDir').item(0);
 createDir.addEventListener('click', mkdir , false);
 var backDir = document.querySelectorAll('#backDir').item(0);
 backDir.addEventListener('click', gobackDir , false);
+	var advOptionTopbar = document.getElementById('advOptionTopbar');
+	var advOptContainer = document.getElementById('advOptionContainer');
+	advOptContainer.style.display = "none";
+	advOptionTopbar.addEventListener("click" , function(e){
+		if(advOptContainer.style && advOptContainer.style.display == "none"){
+			advOptContainer.style.display = "block";
+			advOptionTopbar.innerHTML = "- advanced options";
+		}else{
+			advOptContainer.style.display = "none";
+			advOptionTopbar.innerHTML = "+ advanced options";
+		}
+		e.stopPropagation();
+	}, false);
+$('input[type=radio][name=sort]').change(function() {
+		var decrease = document.getElementById('decrease');
+		sortWall(this.value , decrease.checked);
+});
+$('#decrease').change(function() {
+		console.log(this.checked);
+		var sortMethod = $('input[type=radio][name=sort]:checked').val();
+		sortWall(sortMethod , decrease.checked);
+});
 </script>
 </body>
 </html>
