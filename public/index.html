@@ -19,15 +19,22 @@ imglist.png = imglist.jpg = imglist.gif = imglist.bmp = "img/photo.png";
 imglist.js = "img/js.png";
 function sortWall(sortMethod , desc){
 		sortMethod = sortMethod || "rid";
-		generalList( objArrInWall.sort(function(a , b ){
+		var tmpary;
+		if(sortMethod == "rid" || sortMethod == "ctime" || sortMethod == "mtime" || sortMethod == "size" || sortMethod == "rating"){
+				tmpary = objArrInWall.sort(function(a , b ){
 						if(desc){
-								return (a[sortMethod] < b[sortMethod]);
+								return (b[sortMethod] - a[sortMethod]);
 						}
 						else{
-								return (a[sortMethod] > b[sortMethod]);
+								return (a[sortMethod] - b[sortMethod]);
 						}
-				})
-		);
+				});
+		}
+		else{
+				tmpary = objArrInWall.sort();
+		}
+
+		generalList(tmpary);
 
 
 }
@@ -149,8 +156,8 @@ function itemRightClick(e){
 		menu_copy.innerHTML = "copy";
 		menu_ul.appendChild(menu_copy);
 		*/
-		var menu_list = 	["move" , "copy" , "info" ];
-		var menu_action =	[ initTreeList/*menu_move*/ , menu_copy , menu_info];
+		var menu_list = 	["move" ,  "info" ];
+		var menu_action =	[ initTreeList , menu_info];
 		for(var i=0;i<menu_list.length ; i++){
 				var menu_item = document.createElement("li");
 				menu_item.innerHTML = menu_list[i];
@@ -804,6 +811,11 @@ function sortbyopt(){
 			</div>
 			<div id="advOptionContainer">
 				<hr />
+				<div><input type="radio" name="sort" id="sort_rating" value="rating"/>
+					<label for="sort_rating">
+						sort by Relevance
+					</label>
+				</div>
 				<div><input type="radio" name="sort" id="sort_name" value="name"/>
 					<label for="sort_name">
 						sort by Name
@@ -812,6 +824,11 @@ function sortbyopt(){
 				<div><input type="radio" name="sort" id="sort_type" value="type"/>
 					<label for="sort_type">
 						sort by Type
+					</label>
+				</div>
+				<div><input type="radio" name="sort" id="sort_size" value="size"/>
+					<label for="sort_size">
+						sort by File size
 					</label>
 				</div>
 				<div>
