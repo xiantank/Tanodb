@@ -28,6 +28,7 @@ html, body{
 .topbar{
 		height:5rem;
 		width:100%;
+		min-width: 830px;
 }
 .topbar-img{
 		height: 5rem;
@@ -218,6 +219,7 @@ html, body{
 }
 #advancedOptions{
 	position: relative;
+	margin-left: 3rem;
 	width: 25vw;
 	min-width: 21rem;
 	font-size: 1.5rem;
