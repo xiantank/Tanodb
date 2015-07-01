@@ -360,9 +360,7 @@ int main(int argc , char *argv[] , char *envp[])
 
 							//fprintf(stdout , "%s\n" ,getRecordString(atol(optarg))  );return 0;
 							gaisRecToJson(getRecordString(atol(optarg) ) , buf);
-#if DEBUG
 							printf("%s",buf);
-#endif
 							return 0;
 							break;
 						case 'T' :
@@ -947,9 +945,9 @@ void createDir(long int rid , long int parent , char *filename , char *describe)
 		fd = open( recFileName ,O_WRONLY|O_CREAT , S_IWUSR | S_IRUSR  );
 		lseek(fd,DB.rec_offset,SEEK_SET);
 		sprintf(record , 
-		"@rid:%ld\n@_deleteFlag:%s\n@type:%s\n@name:%s\n@parent:%ld\n@ctime:%ld\n@mtime:%ld\n@desc:%s\n@children:\n@_end:@\n",
+		"@rid:%ld\n@_deleteFlag:%s\n@type:%s\n@name:%s\n@parent:%ld\n@ctime:%ld\n@mtime:%ld\n@desc:%s\n@children:\n@size:%d\n@_end:@\n",
 		rid , "0",  fileType , filename , parent 
-		, now , now , describe );
+		, now , now , describe , 0);
 		//TODO verify ()
 		write(fd , record ,size );
 
@@ -1380,7 +1378,6 @@ void search(char *searchString , int startPosition , int limit){
 
 }
 
-//char *traverseChildren(char *childrenString , char (*callback)(long int));
 char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[][30] , int num[] , int startPosition , int limit){
 		RecordIndex recIndex;
 		char recIndexFile[50];
@@ -1393,6 +1390,10 @@ char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[]
 		char *recordString;
 		char *childrenBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
 		int position=0;
+		int isFirst=true;
+		char *jsonBuf = (char *) malloc( sizeof(char) * DB.RECBLOCK * 4 );
+		char *childRec;
+		char *ptr;
 
 		sprintf(recIndexFile,"db%srec.inx",DB.PATH);
 		fd = open(recIndexFile , O_RDONLY);
@@ -1401,6 +1402,7 @@ char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[]
 		}
 		rid=0;
 		childrenBuf[0] = '\0';
+		printf("{\"action\":\"search\",\"children\":[");
 		while(  ( n = read(fd , &recIndex , sizeof( RecordIndex ) ) ) > 0  ){
 				rid++;//rid:0 not need search
 				if(recIndex.indexFlag & INDEX_EXIST ){
@@ -1446,6 +1448,19 @@ char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[]
 				}
 				if(position>=startPosition){
 						sprintf( childrenBuf ,"%s;%ld" , childrenBuf , rid);
+						/*printChildJson*/
+						childRec = getRecordString(rid);
+						jsonBuf = gaisRecToJson( childRec , jsonBuf);
+						ptr = &jsonBuf[strlen(jsonBuf)-1];
+						sprintf(ptr , ",\"rating\":%d}",result);
+						if(isFirst){
+								printf("%s" , jsonBuf );
+								isFirst = false;
+						}else{
+								printf(",%s" , jsonBuf );
+						}
+
+						/*end pcj*/
 						limit--;
 						if(limit==0)break;
 				}
@@ -1453,16 +1468,17 @@ char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[]
 				//free(recordString);
 
 		}
-		//traverseChildren(char *childrenString , char (*callback)(long int))
 		if( limit<0 &&n != 0){
 				fprintf(stderr , "unknown error: n = %d\n",n);
 				exit(500);
 		}
-		printf("{\"action\":\"search\",\"children\":[");
-		traverseChildren(childrenBuf , (void *)&printChildJson);
+		//traverseChildren(childrenBuf , (void *)&printChildJson);
+		/*traverseChild and print json*/
+		/*tapj and*/
 		printChildJson(-1);//clear printChildJson.isFirst
 		printf("]}");
 
+		free (jsonBuf);
 		free(childrenBuf);
 		close(fd);
 
