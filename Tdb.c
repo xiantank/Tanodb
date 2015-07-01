@@ -1487,8 +1487,9 @@ char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[]
 int searchRecord(char *record , char patterns[][30] , int *count){//return total find ; count for each pat.
 
 		int i=0;
-		char *ptr ;
+		char *ptr , *ptr2 , *colstart;
 		int result=0;
+		char pattern[30],key[30],*value;
 		while(i<30){
 				ptr = record;
 				count[i] = 0;
@@ -1498,8 +1499,41 @@ int searchRecord(char *record , char patterns[][30] , int *count){//return total
 				  1.Y:strcpy(pattern, (pptr=strstr(patterns[i],":"))  +1);get key; search pattern;
 				  2.N:strcpy(pattern,patterns[i]) ; search pattern;
 				 */
+				 /*search for @key:value*/
+				 if(patterns[i][0] == '@'){
+				 		 ptr2 = strstr(patterns[i] , ":");
+				 		 if(ptr2){
+				 		 		 value = ptr2+1;
+				 		 		 sprintf(pattern,"%s",value);
+				 		 		 strncpy(key , patterns[i] , ptr2 - patterns[i] +1);
+				 		 		 colstart = strstr(ptr,key);
+				 		 		 if(!colstart){
+				 		 		 		 i++;continue;
+								 }
+				 		 		 ptr2=colstart;
+				 		 		 while(ptr2 && *ptr2 && *ptr2!='\n'){
+				 		 		 		 ptr2++;
+								 }
+								 ptr = strcasestr(colstart,pattern);
+								 if(!ptr || (ptr>ptr2)){
+								 }else{
+										 result++;
+										 count[i]++;
+								 }
+								 i++;
+								 continue;
+
+						 }
+
+				 }
+
+				 /*end search for @key*/
 
 				ptr = strcasestr(ptr,patterns[i]);
+				if(!ptr){
+						i++;
+						continue;
+				}
 				while( ptr && *ptr ){
 						/*TODO if(haskey) check key*/
 						result++;
