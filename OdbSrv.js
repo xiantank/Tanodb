@@ -34,6 +34,7 @@ app.use(multer({ dest: './uploads/',
 			},
 			onFileUploadComplete: function (file, req, res) {
 				console.log(file.fieldname + ' uploaded to  ' + file.path)
+				res.write((new Date()).getTime().toString());
 				req.done=true;
 			},
 			onFileSizeLimit: function (file) {

@@ -48,7 +48,7 @@ function generalList( objs ){
 						url: url,
 						type:"GET",
 						success: function(msg){
-								console.log("sucess:"+msg);
+								//console.log("sucess:"+msg);
 								try{
 									var curDir = document.getElementById("curDir");
 									curDir.innerHTML = JSON.parse(msg).name; 
@@ -193,7 +193,7 @@ function menu_info(e){
 								url: url,
 								type:"GET",
 								success: function(msg){
-										console.log("sucess:"+msg);
+										//console.log("sucess:"+msg);
 										try{
 												showList(currentDir[currentDir.length-1]);
 										}catch(e){
@@ -213,7 +213,7 @@ function menu_info(e){
 								url: url,
 								type:"GET",
 								success: function(msg){
-										console.log("sucess:"+msg);
+										//console.log("sucess:"+msg);
 										try{
 												showList(currentDir[currentDir.length-1]);
 										}catch(e){
@@ -367,7 +367,7 @@ function uploadDrop(e) {
 				return;
 		}
 		for(var i=0,j=e.dataTransfer.files.length; i<j; i++) {
-				console.log("name: " + e.dataTransfer.files[i].name + " size: " + e.dataTransfer.files[i].size);
+				//console.log("name: " + e.dataTransfer.files[i].name + " size: " + e.dataTransfer.files[i].size);
 				if(e.dataTransfer.files[i].size > MAXFILESIZE){
 						message("over file size limit");
 						return;
@@ -393,7 +393,7 @@ function traverseFileTree(item, path , parentId) {
 		if (item.isFile) {
 				// Get file
 				item.file(function(file) {
-						console.log("File:", path + file.name);
+						//console.log("File:", path + file.name);
 						upload(file , parentId);
 				});
 		} else if (item.isDirectory) {
@@ -439,10 +439,11 @@ function upload(file , upload_parent){
 						contentType: false,
 						success: function(msg){
 								var tmp = msg;
-								message(tmp);
+								//message(tmp);
+								//console.log(msg);
 								//showList(currentDir[currentDir.length-1]);
+								console.log("finish\t"+msg + "\t"+(new Date()).getTime());
 								showList(upload_parent);
-								console.log("finish upload: "+(new Date()).getTime());
 								},
 						error: function(msg){
 								console.log("[error]"+msg);
@@ -730,7 +731,7 @@ function mkdir(event , dirName){
 						url: url,
 						type:"POST",
 						success: function(msg){
-							console.log("sucess:"+msg);
+							//console.log("sucess:"+msg);
 							try{
 								showList(currentDir[currentDir.length-1]);
 							}catch(e){

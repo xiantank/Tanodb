@@ -849,7 +849,7 @@ int putObject(int fdin , long int size , char *fileprefix , unsigned char *fid ,
         close(fd);
 
 		if(verify != ( size )){
-				fprintf(stderr , "putObj error\n");
+				fprintf(stderr , "putObj error:verify:%ld,size:%ld\n",verify,size);
 				//TODO some error handle
 		}
 		*offset += verify;
