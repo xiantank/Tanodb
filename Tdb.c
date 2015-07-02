@@ -1158,8 +1158,9 @@ char *gaisRecToJson(char *gaisRec , char *buf){
 		return buf;
 }
 void putRecord(long int recordId , char *filename , long int parent ,unsigned char *MD5 , char *describe , long int rec_size , long int obj_index){
-		fprintf(stderr , "rid:%ld\nfilename: %s\nparent:%ld\ndescribe: %s\n",
-						recordId,filename,parent,describe);
+#if DEBUG
+		fprintf(stderr , "rid:%ld\nfilename: %s\nparent:%ld\ndescribe: %s\n",recordId,filename,parent,describe);
+#endif
 		int fd=-1;
 		char recFileName[100];
 		char *record , *ptr;
@@ -1435,7 +1436,6 @@ char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[]
 								}
 						}
 						if(j!=num[0])continue;
-						/*TODO for loop check every count has value*/
 				}
 				
 				if( (num[2]>0) ){
@@ -1459,7 +1459,6 @@ char *searchTraverseRecord(char must[][30] , char except[][30] , char optional[]
 						}else{
 								printf(",%s" , jsonBuf );
 						}
-
 						/*end pcj*/
 						limit--;
 						if(limit==0)break;
