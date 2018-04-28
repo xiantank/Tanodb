@@ -39,8 +39,19 @@ function sortWall(sortMethod , desc){
 
 }
 function generalList( objs ){
-		//console.log(objs);
+		console.log(objs);
 		objArrInWall = objs;
+		let removeDup = function(ary){
+				let map = new Map();
+				ary.forEach(item=>{
+								map.set(item.rid, item);
+								});
+				return Array.from(map.values());
+		};
+		objs = removeDup(objs);
+		objs = objs.filter(item=>{
+						return item.rid!== undefined;
+						});
 		var fileList = document.getElementById("fileList");
 		if(currentDir.length){
 				var url = '/odb/'+db+'/rec/'+currentDir[currentDir.length-1]+'/';
@@ -324,7 +335,8 @@ function handleDragStart(e) {
 		  dragSrcEl = this;
 		  e.dataTransfer.effectAllowed = 'move';
 		  //e.dataTransfer.setData('text/html', this.firstChild.textContent);
-		  e.dataTransfer.setData('text/html', this.id);
+		  //e.dataTransfer.setData('text/html', this.id);
+		  e.dataTransfer.setData('text', e.target.id);
 }
 function handleDragOver(e) {
 		if (e.preventDefault) {
@@ -473,11 +485,15 @@ function upload(file , upload_parent){
 
 }
 function deleteDrop(e) {
+		console.log(dragSrcEl.id)
 		if (e.stopPropagation) {
 				e.stopPropagation();
 				e.preventDefault();
 		}
-		var itemId = e.dataTransfer.getData('text/html');
+		//var itemId = e.dataTransfer.getData('text/html');
+		//var itemId = e.dataTransfer.getData('text');
+
+		var itemId = dragSrcEl.id;
 		e.dataTransfer.dropEffect = 'move';
 
 		console.log("will delete : "+ itemId);
@@ -544,6 +560,18 @@ function scaleList(event){
 
 }
 function generalTreeList(objs, target){
+
+		let removeDup = function(ary){
+				let map = new Map();
+				ary.forEach(item=>{
+								map.set(item.rid, item);
+								});
+				return Array.from(map.values());
+		};
+		objs = removeDup(objs);
+		objs = objs.filter(item=>{
+						return item.rid!== undefined;
+						});
 		var treeParent = document.createElement('ul');
 		console.log(objs);
 		var hasChild = false
